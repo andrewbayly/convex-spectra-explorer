@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convex Spectra Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: a precise maths plate, quiet and exact
+   IDEA the Araki–Sugimoto one-pager: hairline polygons, green fans, an orange/yellow S-band
+   PICTURE the live convex arrangement drawn large, the piece in its n-gon beside it
+   COLOUR white paper, black ink, the sheet's green #9bd29b, orange #dcb067, yellow #e1e874
+   TYPE Source Serif 4 for titles and formulas, Inter for controls
+   LAYOUT laptop: controls column left, figure right, piece + spectrum under; phone: title, figure, controls */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#15171a);--ink:light-dark(#1b1c1e,#e9e9e6);--mute:light-dark(#5d6066,#a3a6ab);--line:light-dark(#d9dade,#33363b);--panel:light-dark(#f5f5f3,#1d2024);--edge:light-dark(#1b1c1e,#0e0f10);--g:light-dark(#9bd29b,#5f9c63);--o:light-dark(#dcb067,#b88a3e);--y:light-dark(#e1e874,#b7bd4a);--acc:light-dark(#0d6e78,#58c3cc);--hi:light-dark(#c4302b,#ff7a6e);--c:light-dark(#9fd9dc,#4f9ea3);--bl:light-dark(#6a9fd8,#3f6fa8);--m:light-dark(#c99aab,#8f5d70);--m2:light-dark(#b98399,#7a4c5e);--m3:light-dark(#ead3dc,#5a3a47);--g2:light-dark(#7dbf5b,#4d8a3a);--cr:light-dark(#e6e2c8,#77705a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1240px;margin:0 auto;padding:24px max(16px,3vw) 48px}
+h1{font:600 clamp(30px,4vw,44px)/1.05 "Source Serif 4",Georgia,serif;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--mute);margin:0 0 20px;max-width:70ch}
+.sub a{color:var(--acc)}
+.main{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;align-items:start}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px}
+.row{display:grid;gap:6px}
+.row>label,.lab{font-size:13px;font-weight:600;color:var(--mute)}
+select{font:16px Inter,sans-serif;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:0 10px}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg);overflow:hidden}
+.step button{height:44px;border:0;background:none;color:var(--ink);font:600 20px Inter;cursor:pointer}
+.step button:hover{background:var(--panel)}
+.step output{text-align:center;font:600 18px "Source Serif 4",serif;font-variant-numeric:tabular-nums}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{flex:1 1 auto;min-height:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:7px;font:500 13px Inter;cursor:pointer;padding:0 8px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;min-height:32px}
+.chk input{width:18px;height:18px;accent-color:var(--acc)}
+input[type=range]{width:100%;accent-color:var(--acc);height:28px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.reset{min-height:40px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--ink);font:500 14px Inter;cursor:pointer}
+.stage{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
+.head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.big{font:600 clamp(36px,5vw,56px)/1 "Source Serif 4",serif;font-variant-numeric:tabular-nums}
+.formula{font:500 17px "Source Serif 4",serif;color:var(--mute)}
+.formula b{color:var(--ink);font-weight:600}
+.fig{position:relative;height:clamp(340px,58vh,600px)}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:13px;padding:6px 9px;border-radius:6px;white-space:nowrap;opacity:0;transition:opacity .1s}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--mute)}
+.legend i{display:inline-block;width:12px;height:12px;border:1px solid var(--edge);border-radius:2px;vertical-align:-1px;margin-right:6px}
+.lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:24px;margin-top:24px}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+h2{font:600 22px/1.15 "Source Serif 4",serif;margin:0 0 6px;letter-spacing:-.01em}
+.card p{margin:0 0 10px;color:var(--mute);font-size:15px}
+.piece{height:280px;position:relative}
+.piece svg{position:absolute;inset:0;width:100%;height:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{min-width:48px;min-height:36px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:18px;font:500 14px Inter;font-variant-numeric:tabular-nums;cursor:pointer;padding:0 10px}
+.chips button.on{background:var(--acc);border-color:var(--acc);color:var(--bg)}
+.strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 10px;margin-top:6px}
+.strip button{flex:0 0 150px;scroll-snap-align:start;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px;cursor:pointer;font:13px Inter}
+.strip button.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc) inset}
+.strip svg{width:100%;height:110px;display:block}
+.fam{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:22px}
+.fam h2{margin:0}
+.notes{margin-top:24px;font-size:14px;color:var(--mute);max-width:80ch}
+.notes li{margin-bottom:4px}
+svg text{font-family:"Source Serif 4",serif}
+@media(max-width:860px){.main{grid-template-columns:minmax(0,1fr)}.ctl{order:2;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.lower{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){.tip{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Convex spectra: dissected regular polygons</h1>
+<p class="sub">An interactive companion to the <a href="https://www.t3puzzle.com/convexspectraset.html">one-pager by Yoshiaki Araki and Teruhisa Sugimoto</a> (April 2021), answering Erich Friedman’s <a href="https://erich-friedman.github.io/mathmagic/0499.html">Convex Spectra</a> problem. One piece, many convex arrangements. Pick the piece with <b>k</b>, then grow (<b>r</b>) and stretch (<b>s</b>) the arrangement.</p>
+
+<div class="main">
+<aside class="ctl" aria-label="Controls">
+  <div class="row"><label for="type">Type</label>
+    <select id="type"><option value="1e">Type 1-even</option><option value="1o">Type 1-odd</option><option value="2">Type 2</option><option value="2s">Type 2-sliced</option><option value="2d">Type 2-double</option><option value="2h">Type 2-half</option><option value="2dm">Type 2-double-mod</option><option value="2dt">Type 2-double-trim (new)</option><option value="3">Type 3</option><option value="3h">Type 3-half</option><option value="3s">Type 3-special</option><option value="3hs">Type 3-half-special</option><option value="3ds">Type 3-double-sliced</option><option value="3dss">Type 3-double-sliced-special</option><option value="3t">Type 3-triple</option><option value="4">Type 4</option><option disabled>Other types (coming)</option></select></div>
+  <div class="row" id="famrow"><span class="lab" id="famlab">Family (pentagon piece)</span>
+    <div class="seg" id="sfam"></div></div>
+  <div class="row" id="krow"><span class="lab" id="kl">k: piece (polygon with n = 2k+5 sides)</span>
+    <div class="step" role="group" aria-labelledby="kl"><button data-p="k" data-d="-1" aria-label="Decrease k">−</button><output id="kv"></output><button data-p="k" data-d="1" aria-label="Increase k">+</button></div></div>
+  <div class="row" id="jrow"><span class="lab" id="jl">j: slices per crescent (j = 1 is “Type 3-double”)</span>
+    <div class="step" role="group" aria-labelledby="jl"><button data-p="j" data-d="-1" aria-label="Decrease j">−</button><output id="jv"></output><button data-p="j" data-d="1" aria-label="Increase j">+</button></div></div>
+  <div class="row" id="rrow"><span class="lab" id="rl">r: surround (layers)</span>
+    <div class="step" role="group" aria-labelledby="rl"><button data-p="r" data-d="-1" aria-label="Decrease r">−</button><output id="rv"></output><button data-p="r" data-d="1" aria-label="Increase r">+</button></div></div>
+  <div class="row" id="srow"><span class="lab" id="sl">s: stretch</span>
+    <div class="step" role="group" aria-labelledby="sl"><button data-p="s" data-d="-1" aria-label="Decrease s">−</button><output id="sv"></output><button data-p="s" data-d="1" aria-label="Increase s">+</button></div></div>
+  <div class="row" id="crow" hidden><label for="cin">c: piece shape (c = <span id="cv"></span>)</label>
+    <input type="range" id="cin" min="0.05" max="0.95" step="0.01" value="0.33"></div>
+  <div class="row"><span class="lab">Colour pieces by</span>
+    <div class="seg" id="col"><button data-v="paper">Sheet</button><button data-v="dir">Direction</button><button data-v="layer">Layer</button><button data-v="role">Fan role</button><button data-v="plain">Plain</button></div></div>
+  <div class="row"><label for="build">Build-up: <span id="bv"></span></label>
+    <input type="range" id="build" min="0" max="100" value="100"></div>
+  <label class="chk"><input type="checkbox" id="tips"> Mark fan centres (piece tips)</label>
+  <button class="reset" id="reset">Reset this type</button>
+</aside>
+
+<section class="stage" aria-label="Arrangement">
+  <div class="head">
+    <div><span class="big" id="count"></span> <span class="formula">copies</span></div>
+    <div class="formula" id="formula"></div>
+  </div>
+  <div class="fig" id="fig"><svg id="svg" role="img" aria-label="Convex arrangement of congruent pieces"></svg><div class="tip" id="tip"></div></div>
+  <div class="legend" id="legend"></div>
+</section>
+</div>
+
+<div class="fam"><h2>Family</h2>
+  <div class="seg" id="famv" style="min-width:220px"><button data-v="r">vary r</button><button data-v="s">vary s</button><button data-v="k">vary k</button><button data-v="j">vary j</button><button data-v="f">vary family</button></div>
+  <span class="lab">Click a drawing to open it.</span></div>
+<div class="strip" id="strip"></div>
+
+<div class="lower">
+  <div class="card"><h2>The piece</h2>
+    <p id="pdesc"></p>
+    <div class="piece"><svg id="psvg" role="img" aria-label="The piece drawn inside its regular polygon"></svg></div></div>
+  <div class="card"><h2>Its spectrum</h2>
+    <p id="specp"></p>
+    <div class="chips" id="chips"></div></div>
+</div>
+
+<ul class="notes" id="notes"></ul>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const DEF={'3':{k:1,r:1,s:3},'3s':{r:1,s:2,sf:'B'},'3h':{k:1,r:1,s:3},'3hs':{r:1,s:2,sf:'B'},'3ds':{k:1,j:4,r:1,s:2},'3dss':{j:4,r:2,s:1,sf:'sp'},'3t':{k:1,r:2},'4':{k:2,r:3,s:1,c:1/3},'1e':{k:2,r:1,s:2},'1o':{k:1,r:2,s:1},'2':{k:1,r:1,s:3},'2s':{k:1,j:4,r:1,s:2},'2d':{k:2,r:1,s:2},'2h':{k:1,j:4,r:1,s:2},'2dm':{k:1,r:1,s:2},'2dt':{k:3,r:1,s:4}};
+const st={type:'3',k:1,j:4,r:1,s:3,sf:'B',col:'paper',fam:'r',build:100,tips:false};
+try{Object.assign(st,JSON.parse(localStorage.getItem('cs3')||'{}'))}catch(e){}
+const lim=p=>({k:[1,6],j:[1,8],r:[1,p.type==='3t'||(p.type==='3dss'&&p.sf==='sp')?2:p.type==='3ds'||p.type==='3dss'?8:10],s:[p.type==='3s'||p.type==='3hs'?2:1,p.type==='2d'?3:p.type==='2dm'?2:p.type==='2dt'?12:10]});
+
+/* ---------- geometry ---------- */
+function tools(k){
+  const n=2*k+5,N=2*n,u=Math.PI/n;
+  const e=d=>[Math.cos(d*u),Math.sin(d*u)];
+  const E=d=>{let x=0,y=0;for(let j=0;j<k+2;j++){const v=e(d-2*j);x+=v[0];y+=v[1]}return[x,y]};
+  const dirs=d=>{const a=[];for(let j=0;j<k+2;j++)a.push(d-2*j);for(let j=1;j<k+4;j++)a.push(d+2*j);return a};
+  const shape=(T,d)=>{const p=[T];let[x,y]=T;const ds=dirs(d);for(let i=0;i<ds.length-1;i++){const v=e(ds[i]);x+=v[0];y+=v[1];p.push([x,y])}return p};
+  const md=d=>((d%N)+N)%N;
+  return{n,N,u,e,E,shape,md};
+}
+function finish(T,P){
+  const seen=new Set(),out=[];
+  for(const q of P){const key=(Math.round(q.T[0]*1e5)||0)+','+(Math.round(q.T[1]*1e5)||0)+','+q.d;if(seen.has(key))continue;seen.add(key);q.pts=T.shape(q.T,q.d);out.push(q)}
+  return out;
+}
+/* Type 3: r layers, stretch s */
+function build(k,r,s){
+  const T=tools(k),{n,N,E,md}=T;
+  const h=(s-2)/2,A=[-h,0],C=[h,0],t4=2*k+3,t5=2*k+4,P=[];
+  const add=(p,d,role,m,band)=>P.push({T:p,d:md(d),role,m,band});
+  const isBand=d=>[t4,t5,t4+n,t5+n].map(md).includes(md(d));
+  if(s===1){for(let d=t5+1;d<t4+n;d++)add(A,d,'c',0,false);for(let d=t5-n+1;d<t4;d++)add(C,d,'c',0,false)}
+  else if(s===2){for(let d=0;d<N;d++)add(A,d,'c',0,isBand(d))}
+  else{for(let d=t4;d<=t5+n;d++)add(A,d,'c',0,isBand(d));for(let d=t4-n;d<=t5;d++)add(C,d,'c',0,isBand(d));
+    for(let j=1;j<s-2;j++){const c=[-h+j,0];for(const d of[t4,t5,t4+n,t5+n])add(c,d,'c',0,true)}}
+  const corners=[];for(let d=t4-n+1;d<=t4;d++)corners.push([C,d]);for(let d=t5;d<t5+n;d++)corners.push([A,d]);
+  for(let m=1;m<r;m++){
+    const cs=corners.map(([X,d])=>{const v=E(d);return[[X[0]+m*v[0],X[1]+m*v[1]],d]});
+    cs.forEach(([p,d],i)=>{
+      const top=d===t4&&i===n-1,bot=md(d)===md(t4+n)&&i===2*n-1;
+      for(const dd of[d-1,d,d+1])add(p,dd,'k',m,(top&&(dd===t4||dd===t5))||(bot&&(md(dd)===md(t4+n)||md(dd)===md(t5+n))));
+      const[q]=cs[(i+1)%cs.length],L=Math.round(Math.hypot(q[0]-p[0],q[1]-p[1]));
+      for(let t=1;t<L;t++){const pt=[p[0]+(q[0]-p[0])*t/L,p[1]+(q[1]-p[1])*t/L];for(const dd of[d,d+1])add(pt,dd,'e',m,top||bot)}
+    })}
+  return finish(T,P);
+}
+/* convex hull, strict corners only, CCW */
+function hull(pts){
+  const p=pts.map(v=>[v[0],v[1]]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[],up=[];
+  for(const v of p){while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],v)<=1e-7)lo.pop();lo.push(v)}
+  for(const v of p.slice().reverse()){while(up.length>1&&cr(up[up.length-2],up[up.length-1],v)<=1e-7)up.pop();up.push(v)}
+  return lo.slice(0,-1).concat(up.slice(0,-1));
+}
+/* general surround: a vertex where the outline turns t steps gets t+2 pieces */
+function surround(k,base,layers){
+  const T=tools(k),{N,u,E,md}=T,P=base.map(q=>({T:q.T,d:q.d,role:q.role,m:q.m,band:q.band}));
+  let V=hull(finish(T,base.map(q=>({...q}))).flatMap(q=>q.pts));
+  for(let m=1;m<=layers;m++){
+    const L=V.length,dir=V.map((a,i)=>{const b=V[(i+1)%L];return md(Math.round(Math.atan2(b[1]-a[1],b[0]-a[0])/u))});
+    const nv=[];
+    for(let i=0;i<L;i++){
+      const din=dir[(i-1+L)%L],dout=dir[i],t=md(dout-din),p=V[i];
+      for(let d=din-2;d<din+t;d++)P.push({T:p,d:md(d),role:t>1?'x':'k',m,band:false});
+      for(let j=din-1;j<din+t-1;j++){const v=E(j);nv.push([p[0]+v[0],p[1]+v[1]])}
+      const b=V[(i+1)%L],n=Math.round(Math.hypot(b[0]-p[0],b[1]-p[1]));
+      for(let s=1;s<n;s++){const q=[p[0]+(b[0]-p[0])*s/n,p[1]+(b[1]-p[1])*s/n];for(const d of[dout-2,dout-1])P.push({T:q,d:md(d),role:'e',m,band:false})}
+    }
+    V=hull(nv);
+  }
+  return finish(T,P);
+}
+/* cut a Type 3 piece along its mirror axis */
+function halves(pts,k){
+  const m=pts.length,at=f=>{const i=Math.floor(f),t=f-i,a=pts[i%m],b=pts[(i+1)%m];return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]};
+  const fi=(k+2)/2,fo=k+2+(k+3)/2,Mi=at(fi),Mo=at(fo),A=[Mo],B=[Mi];
+  for(let i=Math.floor(fo)+1;i<=m;i++)A.push(pts[i%m]);
+  for(let i=1;i<=Math.ceil(fi)-1;i++)A.push(pts[i]);
+  A.push(Mi);
+  for(let i=Math.floor(fi)+1;i<=Math.ceil(fo)-1;i++)B.push(pts[i]);
+  B.push(Mo);
+  const clean=P=>P.filter((p,i)=>{const q=P[(i+1)%P.length];return Math.hypot(p[0]-q[0],p[1]-q[1])>1e-9});
+  return[clean(A),clean(B)];
+}
+function halved(k,r,s){
+  const out=[];
+  for(const q of build(k,r,s)){const[a,b]=halves(q.pts,k);out.push({...q,pts:a,half:'a'},{...q,pts:b,half:'b'})}
+  return out;
+}
+/* Type 3-double(-sliced): thick crescents = Y chain swept by one unit */
+function cres(k,T,d,mir){const{e}=tools(k),A=[T];let[x,y]=T;for(let i=0;i<k+2;i++){const v=e(mir?d+2*i:d-2*i);x+=v[0];y+=v[1];A.push([x,y])}
+  const w=e(mir?d-2:d+2);return A.concat(A.map(([x,y])=>[x+w[0],y+w[1]]).reverse())}
+function t3dTiles(k,r){
+  const n=2*k+5,{e}=tools(k),sh=(P,t)=>P.map(([x,y])=>[x+t[0],y+t[1]]),p1=cres(k,[0,0],0,false),tip=p1[k+2],v=e(2),w=e(3);
+  const QT=[2*tip[0]+2*v[0]+w[0],2*tip[1]+2*v[1]+w[1]],Q=cres(k,QT,5,true),out=[];
+  for(let i=0;i<n;i++)out.push({pts:cres(k,[0,0],2*i,false),kind:'fat',m:0,role:'c'});
+  for(let m=1;m<r;m++){const g=[];
+    for(let t=0;t<=m;t++)g.push({pts:sh(p1,[m*tip[0]+t*v[0],m*tip[1]+t*v[1]]),kind:'fat'});
+    for(let t=0;t<m;t++)g.push({pts:sh(Q,[(m-1)*(tip[0]+v[0])+t*w[0],(m-1)*(tip[1]+v[1])+t*w[1]]),kind:'thin'});
+    for(let i=0;i<n;i++){const a=i*2*Math.PI/n,c=Math.cos(a),s=Math.sin(a);
+      for(const q of g)out.push({pts:q.pts.map(([x,y])=>[x*c-y*s,x*s+y*c]),kind:q.kind,m,role:q.kind==='fat'?'k':'x'})}}
+  return out;
+}
+function inPoly(p,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+const SPEC=[[0.499871, -2e-06, 5, 1], [0.808888, -0.951059, 5, 0], [-0.500129, -2e-06, 0, 1], [-0.809146, 0.951055, 0, 0], [-2.118163, -1.902116, 0, 1], [-2.42718, -0.951059, 0, 1], [-1.118163, -2e-06, 5, 0], [2.426922, -0.951059, 4, 1], [2.117905, -1.902116, 4, 1], [-0.000129, -3.440958, 2, 1], [0.499871, 1.902112, 1, 0], [0.808888, 0.951055, 1, 0], [1.117905, -2e-06, 1, 0], [-0.809146, 0.951055, 5, 0], [-0.500129, 1.902112, 5, 0], [0.499871, 1.902112, 3, 0], [-0.500129, 1.902112, 3, 0], [0.499871, -1.902116, 9, 0], [-0.500129, -1.902116, 7, 0]];
+function sliceTiles(k,tiles,j){const N=2*(2*k+5),{u}=tools(k),strips=[],outlines=[];
+  const dirOf=P=>((Math.round(Math.atan2(P[1][1]-P[0][1],P[1][0]-P[0][0])/u)%N)+N)%N;
+  tiles.forEach((q,ci)=>{const P=q.pts,A=P.slice(0,k+3),sw=[P[P.length-1][0]-P[0][0],P[P.length-1][1]-P[0][1]];outlines.push(P);
+    for(let t=0;t<j;t++){const a=A.map(([x,y])=>[x+sw[0]*t/j,y+sw[1]*t/j]),b=A.map(([x,y])=>[x+sw[0]*(t+1)/j,y+sw[1]*(t+1)/j]);
+      strips.push({pts:a.concat(b.reverse()),kind:q.kind,m:q.m,role:q.role,ci,t,band:false,T:a[0],d:dirOf(P)})}});
+  return{strips,outlines}}
+function specialSliced(j,r){const tiles=SPEC.slice(0,r===1?4:19).map(([x,y,d,m],i)=>({pts:cres(0,[x,y],d,!!m),kind:m?'thin':'fat',m:i<4?0:1,role:i<4?'c':m?'x':'k'}));return sliceTiles(0,tiles,j)}
+function doubleSliced(k,j,r,s){
+  const n=2*k+5,N=2*n,{e,u}=tools(k),tiles=t3dTiles(k,r),strips=[],outlines=[];
+  const dirOf=P=>((Math.round(Math.atan2(P[1][1]-P[0][1],P[1][0]-P[0][0])/u)%N)+N)%N;
+  tiles.forEach((q,ci)=>{const P=q.pts,A=P.slice(0,k+3),sw=[P[P.length-1][0]-P[0][0],P[P.length-1][1]-P[0][1]];outlines.push(P);
+    for(let t=0;t<j;t++){const a=A.map(([x,y])=>[x+sw[0]*t/j,y+sw[1]*t/j]),b=A.map(([x,y])=>[x+sw[0]*(t+1)/j,y+sw[1]*(t+1)/j]);
+      strips.push({pts:a.concat(b.reverse()),kind:q.kind,m:q.m,role:q.role,ci,t,band:false,T:a[0],d:dirOf(P)})}});
+  if(s>1){
+    const d=N-2,d2=(d+n+1)%N,uu=e(d+2),U=[(s-1)*uu[0]/j,(s-1)*uu[1]/j];
+    const Y=(dd,m)=>{const pc=cres(k,[0,0],dd,false).slice(0,k+3),tp=pc[k+2];return pc.map(([x,y])=>[x+m*tp[0],y+m*tp[1]])};
+    let up=[],dn=[];for(let m=0;m<r;m++){up=up.concat(Y(d,m).slice(m?1:0));dn=dn.concat(Y(d2,m).slice(m?1:0))}
+    const H=hull(strips.flatMap(q=>q.pts)),near=p=>H.reduce((bi,v,i)=>Math.hypot(v[0]-p[0],v[1]-p[1])<Math.hypot(H[bi][0]-p[0],H[bi][1]-p[1])?i:bi,0);
+    const iT=near(up[up.length-1]),iB=near(dn[dn.length-1]),Z=dn.slice().reverse().concat(up.slice(1));
+    const side=(a,b)=>{const pts=[];for(let i=a;;i=(i+1)%H.length){pts.push(H[i]);if(i===b)break}return pts};
+    const R1=Z.concat(side(iT,iB).slice(1,-1)),R2=Z.concat(side(iB,iT).reverse().slice(1,-1));
+    const mid=[(up[0][0]+up[1][0])/2+uu[0]*1e-3,(up[0][1]+up[1][1])/2+uu[1]*1e-3],MV=inPoly(mid,R1)?R1:R2;
+    for(const q of strips){const p=q.pts,c=[(p[0][0]+p[1][0]+p[p.length-1][0]+p[p.length-2][0])/4,(p[0][1]+p[1][1]+p[p.length-1][1]+p[p.length-2][1])/4];
+      if(inPoly(c,MV))q.pts=p.map(([x,y])=>[x+U[0],y+U[1]])}
+    for(const o of outlines){const c=[(o[0][0]+o[1][0]+o[o.length-1][0]+o[o.length-2][0])/4,(o[0][1]+o[1][1]+o[o.length-1][1]+o[o.length-2][1])/4];
+      if(inPoly(c,MV))o.splice(0,o.length,...o.map(([x,y])=>[x+U[0],y+U[1]]))}
+    for(let m=0;m<r;m++)for(const[ch,kind]of[[Y(d,m),'fat'],[Y(d2,m),'thin']])for(let t=0;t<s-1;t++){
+      const a=ch.map(([x,y])=>[x+uu[0]*t/j,y+uu[1]*t/j]),b=ch.map(([x,y])=>[x+uu[0]*(t+1)/j,y+uu[1]*(t+1)/j]);
+      strips.push({pts:a.concat(b.reverse()),kind:'ins',ins:kind,m,role:'e',ci:-1,t,band:true,T:a[0],d:dirOf(ch)})}
+  }
+  return{strips,outlines};
+}
+/* Type 3-triple: three Type 3 pieces (k' = 3k-1) fanned around a shared tip */
+function triples(k,r){
+  const kp=3*k-1,T=tools(kp),{e,E,N,md}=T,out=[];
+  const Ych=(P,d)=>{const pts=[P];let[x,y]=P;for(let j=0;j<kp+2;j++){const v=e(d-2*j);x+=v[0];y+=v[1];pts.push([x,y])}return pts};
+  const tri=(P,d,role,m)=>{const a=Ych(P,d),b=Ych(P,d+3),W=i=>{const v=E(d+i);return[P[0]+v[0],P[1]+v[1]]};
+    const pts=a.concat([W(1),W(2)],b.slice(1).reverse());
+    return{pts,T:P,d:md(d),role,m,band:false,inner:[Ych(P,d+1),Ych(P,d+2)]}};
+  for(let i=0;i<N/3;i++)out.push(tri([0,0],3*i,'c',0));
+  if(r>1)for(let c=0;c<N;c++){const v=E(c);out.push(tri(v,c-1,'k',1))}
+  return out;
+}
+/* Type 3-special families (pentagon piece, k=0) */
+function special(f,r,s){
+  if(f==='A')return build(0,r,1);
+  if(f==='C')return build(0,r,s);
+  const core=build(0,1,1),V=hull(core.flatMap(q=>q.pts));
+  const lo=V.reduce((a,v,i)=>v[1]<V[a][1]?i:a,0),hi=V.reduce((a,v,i)=>v[1]>V[a][1]?i:a,0);
+  core.push({T:V[(lo+1)%V.length],d:6,role:'c',m:0,band:true});
+  if(f==='D')core.push({T:V[(hi+1)%V.length],d:1,role:'c',m:0,band:true});
+  return surround(0,core,r-1);
+}
+function halvesOf(list){const out=[];for(const q of list){const[a,b]=halves(q.pts,0);out.push({...q,pts:a,half:'a'},{...q,pts:b,half:'b'})}return out}
+function tiny(c){const h=halves(tools(0).shape([0,0],0),0)[0],q={T:[0,0],d:0,role:'c',m:0,band:false,half:'a',pts:h};
+  if(c===1)return[q];const cx=(h[2][0]+h[1][0])/2,cy=(h[2][1]+h[1][1])/2;
+  return[q,{...q,band:true,half:'a',pts:h.map(([x,y])=>[2*cx-x,2*cy-y])}];}
+const FAMS={
+ '3s':{A:{f:r=>2*r*(5*r-2),t:'2r(5r−2)',sub:(r)=>`2·${r}·(5·${r}−2)`},B:{f:r=>2*r*(5*r-1)-1,t:'2r(5r−1)−1',sub:r=>`2·${r}·(5·${r}−1)−1`},C:{f:(r,s)=>10*r*r+4*r*(s-2),t:'10r²+4r(s−2)',sub:(r,s)=>`10·${r}² + 4·${r}·(${s}−2)`},D:{f:r=>10*r*r-2,t:'10r²−2',sub:r=>`10·${r}² − 2`,note:'drawn on the sheet, but not in its listed spectrum',lab:'10r²−2 (unlisted)'}},
+ '3dss':{dec:{t:'5jr²+2r(s−1)',lab:'5jr²+2r(s−1) (decagon)'},sp:{t:'5jr²−j',lab:'5jr²−j (special, r ≤ 2)'}},
+ '3hs':{one:{f:()=>1,t:'1',fixed:1},two:{f:()=>2,t:'2',fixed:1},A:{f:r=>4*r*(5*r-2),t:'4r(5r−2)',sub:r=>`4·${r}·(5·${r}−2)`},B:{f:r=>4*r*(5*r-1)-2,t:'4r(5r−1)−2',sub:r=>`4·${r}·(5·${r}−1)−2`,note:'the sheet writes 4r(5r−1)−1, but its drawing has 14 = 4·1·4−2',lab:'4r(5r−1)−2 (sheet: −1)'},C:{f:(r,s)=>20*r*r+8*r*(s-2),t:'20r²+8r(s−2)',sub:(r,s)=>`20·${r}² + 8·${r}·(${s}−2)`},D:{f:r=>20*r*r-4,t:'20r²−4',sub:r=>`20·${r}² − 4`,note:'drawn on the sheet, but not in its listed spectrum',lab:'20r²−4 (unlisted)'}}};
+/* ---------- Type 1-even ---------- */
+function t1notch(tri,R,h=0.07){
+  let P=tri.map(p=>[p[0],p[1]]);
+  if((P[1][0]-P[0][0])*(P[2][1]-P[0][1])-(P[1][1]-P[0][1])*(P[2][0]-P[0][0])<0)P=[P[0],P[2],P[1]];
+  let X,A,B;const dist=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]);
+  for(let i=0;i<3;i++){X=P[i];A=P[(i+1)%3];B=P[(i+2)%3];if(Math.abs(dist(A,X)-R)<1e-6&&Math.abs(dist(B,X)-R)<1e-6)break}
+  const prof=[[.3,0],[.4,1],[.5,0],[.6,-1],[.7,0]],dA=[A[0]-X[0],A[1]-X[1]],nA=[dA[1],-dA[0]],dB=[B[0]-X[0],B[1]-X[1]],nB=[-dB[1],dB[0]];
+  const pa=prof.map(([u,f])=>[X[0]+dA[0]*u+nA[0]*f*h,X[1]+dA[1]*u+nA[1]*f*h]);
+  const pb=prof.slice().reverse().map(([u,f])=>[X[0]+dB[0]*u-nB[0]*f*h,X[1]+dB[1]*u-nB[1]*f*h]);
+  return{pts:[X,...pa,A,B,...pb],apex:X}}
+function t1ebuild(k,s){const n=4*k,a=2*Math.PI/n,R=1/(2*Math.sin(a/2)),th0=Math.PI/2-a/2,V=i=>[R*Math.cos(th0+i*a),R*Math.sin(th0+i*a)],e=s-1,out=[],d1=V(1);
+  const add=(tri,role,d)=>{const J=t1notch(tri,R);out.push({pts:J.pts,T:J.apex,d,m:0,role})};
+  for(let i=0;i<n;i++){const A=V(i),B=V(i+1),cx=(A[0]+B[0])/3,cy=(A[1]+B[1])/3,sh=(d1[0]*cy-d1[1]*cx)<0?e:0;
+    add([[sh,0],[A[0]+sh,A[1]],[B[0]+sh,B[1]]],'c',i)}
+  const top=V(1),bot=V(1+2*k);
+  for(let o=0;o<e;o++){const P=[[top[0]+o,top[1]],[top[0]+o+1,top[1]],[o+1,0],[o,0]],Q=[[o,0],[o+1,0],[bot[0]+o+1,bot[1]],[bot[0]+o,bot[1]]];
+    add([P[0],P[1],P[3]],'e',1);add([P[1],P[2],P[3]],'e',1+2*k);add([Q[0],Q[1],Q[3]],'e',1+2*k);add([Q[1],Q[2],Q[3]],'e',1)}
+  return out}
+function t1obuild(k,r){const n=2*k+3,a=2*Math.PI/n,R=1/(2*Math.sin(a/2)),V=i=>[r*R*Math.cos(Math.PI/2+i*a),r*R*Math.sin(Math.PI/2+i*a)],out=[];
+  for(let i=0;i<n;i++){const A=V(i),B=V(i+1),P=(p,q)=>[(A[0]*p+B[0]*q)/r,(A[1]*p+B[1]*q)/r];
+    for(let p=0;p<r;p++)for(let q=0;q<r-p;q++){
+      let J=t1notch([P(p,q),P(p+1,q),P(p,q+1)],R);out.push({pts:J.pts,T:J.apex,d:i,m:p+q,role:'u'});
+      if(q<r-p-1){J=t1notch([P(p+1,q),P(p+1,q+1),P(p,q+1)],R);out.push({pts:J.pts,T:J.apex,d:i,m:p+q+1,role:'v'})}}}
+  return out}
+/* ---------- Type 2 ---------- */
+function t2cres(i,m){const u=j=>[Math.cos(j*Math.PI/m),Math.sin(j*Math.PI/m)],o=[[0,0]];let p=[0,0];
+  for(let j=i;j<i+m;j++){const v=u(j);p=[p[0]+v[0],p[1]+v[1]];o.push(p)}
+  const inn=[];p=[0,0];for(const j of [...Array(m-1)].map((_,t)=>i+1+t).concat([i])){const v=u(j);p=[p[0]+v[0],p[1]+v[1]];inn.push(p)}
+  return o.concat(inn.slice(0,-1).reverse())}
+function t2build(k,N){const m=k+2,out=[];let S0=[0,0];for(let j=0;j<m;j++){S0[0]+=Math.cos(j*Math.PI/m);S0[1]+=Math.sin(j*Math.PI/m)}
+  const sg=-S0[1]>0?1:-1;
+  for(let i=0;i<2*m;i++){if(i===0||i===m)continue;const P=t2cres(i,m),sh=i>m?N-2:0;
+    out.push({pts:P.map(([x,y])=>[x+sh,y]),T:[sh,0],d:i,m:0,role:'c'})}
+  for(let t=0;t<N-1;t++)for(const i of [0,m])out.push({pts:t2cres(i,m).map(([x,y])=>[x+t,y]),T:[t,0],d:i,m:t+1,role:'o',t});
+  return out}
+function t2slice(i,m,J){const u=l=>[Math.cos(l*Math.PI/m),Math.sin(l*Math.PI/m)];
+  const chain=t=>{const vs=[[u(i),t]];for(let l=i+1;l<i+m;l++)vs.push([u(l),J]);vs.push([u(i),J-t]);const o=[[0,0]];let p=[0,0];for(const[v,L]of vs){if(!L)continue;p=[p[0]+v[0]*L,p[1]+v[1]*L];o.push(p)}return o};
+  const A=chain(0),B=chain(1);return(J>1?B.slice(0,-1):B).concat(A.slice(1,-1).reverse())}
+function t2sbuild(k,J,N){const m=k+2,out=[];let S0=[0,0];for(let l=0;l<m;l++){S0[0]+=Math.cos(l*Math.PI/m);S0[1]+=Math.sin(l*Math.PI/m)}
+  const sg=-S0[1]>0?1:-1;
+  for(let i=0;i<2*m;i++){if(i===0||i===m)continue;const P=t2slice(i,m,J),ui=[Math.cos(i*Math.PI/m),Math.sin(i*Math.PI/m)],sh=i>m?N-1-J:0;
+    for(let t=0;t<J;t++)out.push({pts:P.map(([x,y])=>[x+t*ui[0]+sh,y+t*ui[1]]),T:[t*ui[0]+sh,t*ui[1]],d:i,m:0,role:'c',t})}
+  const A=t2slice(0,m,J),Bm=t2slice(m,m,J);
+  for(let q=0;q<N-1;q++){out.push({pts:A.map(([x,y])=>[x+q,y]),T:[q,0],d:0,m:1,role:'o',t:q});out.push({pts:Bm.map(([x,y])=>[x+q-J+1,y]),T:[q-J+1,0],d:m,m:1,role:'o',t:q})}
+  return out}
+function t2dbl(i,m,T){const u=j=>[Math.cos(j*Math.PI/m),Math.sin(j*Math.PI/m)],o=[[0,0]];let p=[0,0];
+  for(let j=i;j<i+m;j++){const v=u(j);p=[p[0]+v[0],p[1]+v[1]];o.push(p)}
+  const ui=u(i);o.push([p[0]-ui[0],p[1]-ui[1]]);o.push([p[0]-2*ui[0],p[1]-2*ui[1]]);
+  const inn=[];p=[0,0];for(let j=i+2;j<=i+m;j++){const v=u(j);p=[p[0]+v[0],p[1]+v[1]];inn.push(p)}
+  return o.concat(inn.reverse()).map(([x,y])=>[x+T[0],y+T[1]])}
+function t2dbuild(k,c){const m=2*k+1,out=[],add=(i,T)=>out.push({pts:t2dbl(i,m,T),T,d:i%(2*m),m:0,role:'c'});
+  if(c===1)for(let i=0;i<m;i++)add(2*i,[0,0]);
+  else if(c===2){for(let i=0;i<(m+1)/2;i++)add(2*i,[0,0]);for(let i=0;i<(m+1)/2;i++)add(m+2*i,[1,0])}
+  else{for(let i=0;i<(m-1)/2;i++)add(1+2*i,[0,0]);for(let i=0;i<(m-1)/2;i++)add(m+1+2*i,[-1,0])}
+  return out}
+function t2halves(i,m,J){const u=l=>[Math.cos(l*Math.PI/m),Math.sin(l*Math.PI/m)],ui=u(i),Q=[[0,0]];
+  for(let t=1;t<m;t++){const p=Q[Q.length-1],v=u(i+t);Q.push([p[0]+J*v[0],p[1]+J*v[1]])}
+  const up=p=>[p[0]+ui[0],p[1]+ui[1]];let c,L,R;
+  if(m%2){const h=(m-1)/2;c=Q[h];L=Q.slice(0,h+1);R=Q.slice(h)}else{const h=(m-2)/2;c=[(Q[h][0]+Q[h+1][0])/2,(Q[h][1]+Q[h+1][1])/2];L=Q.slice(0,h+1).concat([c]);R=[c].concat(Q.slice(h+1))}
+  return[L.concat(L.slice().reverse().map(up)),R.concat(R.slice().reverse().map(up))]}
+function t2hbuild(k,J,N){const m=k+3,out=[];
+  for(const q of t2sbuild(k+1,J,N)){const H=t2halves(q.d,m,J);H.forEach((h,s)=>out.push({pts:h.map(([x,y])=>[x+q.T[0],y+q.T[1]]),T:q.T,d:q.d,m:q.m,role:q.role,t:q.t,mir:s===1}))}
+  return out}
+function t2dmpiece(m,rot,T){const s=2*Math.tan(Math.PI/m)/Math.tan(Math.PI/(2*m)),R=s/(2*Math.sin(Math.PI/m));
+  const chain=ph=>{const o=[[0,0]];let p=[0,0];for(let j=0;j<m-1;j++){const a=ph+(2*j-(m-2))*Math.PI/(2*m);p=[p[0]+Math.cos(a),p[1]+Math.sin(a)];o.push(p)}return o};
+  const A=chain(rot),B=chain(rot+2*Math.PI/m),c=[R*Math.cos(rot+Math.PI/m),R*Math.sin(rot+Math.PI/m)];
+  return A.concat([c]).concat(B.slice(1).reverse()).map(([x,y])=>[x+T[0],y+T[1]])}
+function t2dmbuild(k,c){const m=2*k+3,h=(m-1)/2,out=[],add=(i,rot,T)=>out.push({pts:t2dmpiece(m,rot,T),T,d:i,m:0,role:'c'});
+  if(c===1)for(let i=0;i<m;i++)add(i,-Math.PI/2+2*Math.PI*i/m,[0,0]);
+  else{for(let i=0;i<h;i++)add(i,Math.PI/2+2*Math.PI*i/m,[0,0]);for(let i=0;i<h;i++)add(i+h,Math.PI/2+2*Math.PI*i/m+Math.PI,[-1,0])}
+  return out}
+function t2trim(i,m,T){const P=t2dbl(i,m,T);P.splice(m+2,1);return P}
+const t2dtcount=(k,s)=>k===1?s+1:s<=2?2*k+s-1:2*k+2+2*(s-3);
+function t2dtbuild(k,s){const m=2*k+1,n=t2dtcount(k,s),out=[],add=(i,T,role)=>out.push({pts:t2trim(i,m,T),T,d:((i%(2*m))+2*m)%(2*m),m:0,role});
+  if(n===2*k){for(let i=0;i<k;i++)add(1+2*i,[0,0],'c');for(let i=0;i<k;i++)add(m+1+2*i,[-1,0],'c');return out}
+  if(n===2*k+1){for(let i=0;i<m;i++)add(2*i,[0,0],'c');return out}
+  const L=k===1?n-3:n-2*k-1,u=j=>[Math.cos(j*Math.PI/m),Math.sin(j*Math.PI/m)],vs=[[0,0]];
+  for(let t=0;t<L;t++){const e=u(t%2?1:0),p=vs[vs.length-1];vs.push([p[0]+e[0],p[1]+e[1]])}
+  for(let i=0;i<(m+1)/2;i++)add(2*i,vs[0],'c');
+  if(L%2)for(let i=0;i<(m+1)/2;i++)add(m+2*i,vs[L],'c');else for(const r of [0,4])add(r,vs[L],'c');
+  for(let t=1;t<L;t++)add(t%2?m:0,vs[t],'z');
+  return out}
+/* ---------- Type 4 ---------- */
+const T4C=1/3;
+function t4tools(M,c){const u=Math.PI/M,R=1/(2*Math.sin(u/2)),V=i=>[R*Math.cos(i*u),R*Math.sin(i*u)];
+  const chain=d=>{const Vl=V(d),Vs=V(d+1),E=[Vs[0]+c*(Vl[0]-Vs[0]),Vs[1]+c*(Vl[1]-Vs[1])],ph=(d+1)*u+(M-3)*u/2;return[[(1-c)*Math.cos(ph),(1-c)*Math.sin(ph)],E]};
+  const piece=(d,mir)=>{const[A0,E0]=chain(d),[A1,E1]=chain(d+1),P=[[0,0],A0,E0,V(d+1),E1,A1];return mir?P.map(([x,y])=>[x,-y]):P};
+  return{u,R,V,piece}}
+function t4build(k,r,s,c=T4C){const M=k+2,N=2*M,{u,V,piece}=t4tools(M,c),e=s-1,k1=0,k2=M;
+  const W=[V(0)[0]-V(1)[0],V(0)[1]-V(1)[1]],rot=-Math.atan2(W[1],W[0]),cr=Math.cos(rot),sr=Math.sin(rot);
+  const RT=([x,y])=>[x*cr-y*sr,x*sr+y*cr],shifted=new Set();for(let j=1;j<M;j++)shifted.add(((k1-j)%N+N)%N);
+  const out=[],V0=V(0),V1=V(1);
+  for(let m=1;m<=r;m++)for(let kk=0;kk<N;kk++){const a=kk*u,ca=Math.cos(a),sa=Math.sin(a),rp=([x,y])=>[x*ca-y*sa,x*sa+y*ca];
+    const long=kk===k1||kk===k2,L=m+(long?e:0),off=(shifted.has(kk)||kk===k2)?[W[0]*e,W[1]*e]:[0,0];
+    const add=(T0,d,mir,extra)=>{const T1=rp(T0),T=[T1[0]+off[0],T1[1]+off[1]],P=piece(d,mir).map(([x,y])=>RT([x+T[0],y+T[1]]));
+      out.push({pts:P,T:RT(T),d:mir?(d+M)%N:d,mir,m:m-1,role:extra?'e':m===1?'c':mir?'x':'k'})};
+    for(let i=0;i<L;i++){const B=[(m-1)*V1[0]+i*(V0[0]-V1[0]),(m-1)*V1[1]+i*(V0[1]-V1[1])];
+      add(B,kk%N,false,long&&i>=m);if(i<L-1)add([B[0]+V0[0],B[1]+V0[1]],((M-1-kk)%N+N)%N,true,long&&i>=m-1)}}
+  return out}
+function arrangement(p){
+  if(p.type==='2dt'){const n=2*(2*p.k+1),c=t2dtcount(p.k,p.s);
+    return{pieces:t2dtbuild(p.k,p.s),k:p.k,n,N:n,count:c,formula:p.k===1?`k = 1: every count from 2 on: <b>${c}</b>`:`{2k, 2k+1} ∪ {2k+2+2j} with k = ${p.k}: <b>${c}</b>`}}
+  if(p.type==='2dm'){const n=2*p.k+3,c=2*p.k+1+p.s;
+    return{pieces:t2dmbuild(p.k,p.s-1),k:p.k,n,N:2*n,count:c,formula:`{2k+2, 2k+3} with k = ${p.k}: <b>${c}</b>`}}
+  if(p.type==='2h'){const n=2*(p.k+3),c=4*p.s+4*((p.k+2)*p.j-1);
+    return{pieces:t2hbuild(p.k,p.j,p.s),k:p.k,n,N:n,count:c,formula:`4N + 4((k+2)j − 1) = 4·${p.s} + 4·(${p.k+2}·${p.j} − 1) = <b>${c}</b>`}}
+  if(p.type==='2d'){const n=2*(2*p.k+1),c=2*p.k+p.s-1;
+    return{pieces:t2dbuild(p.k,p.s-1),k:p.k,n,N:n,count:c,formula:`{2k, 2k+1, 2k+2} with k = ${p.k}: <b>${c}</b>`}}
+  if(p.type==='2s'){const n=2*(p.k+2),c=2*p.s+2*((p.k+1)*p.j-1);
+    return{pieces:t2sbuild(p.k,p.j,p.s),k:p.k,n,N:n,count:c,formula:`2N + 2((k+1)j − 1) = 2·${p.s} + 2·(${p.k+1}·${p.j} − 1) = <b>${c}</b>`}}
+  if(p.type==='2'){const n=2*(p.k+2),c=2*p.s+2*p.k;
+    return{pieces:t2build(p.k,p.s),k:p.k,n,N:n,count:c,formula:`2N + 2k = 2·${p.s} + 2·${p.k} = <b>${c}</b>`}}
+  if(p.type==='1o'){const n=2*p.k+3,c=n*p.r*p.r;
+    return{pieces:t1obuild(p.k,p.r),k:p.k,n,N:n,count:c,formula:`(2k+3)r² = ${n}·${p.r}² = <b>${c}</b>`}}
+  if(p.type==='1e'){const n=4*p.k,c=4*p.s+4*(p.k-1);
+    return{pieces:t1ebuild(p.k,p.s),k:p.k,n,N:n,count:c,formula:`4N + 4(k−1) = 4·${p.s} + 4·(${p.k}−1) = <b>${c}</b>`}}
+  if(p.type==='4'){const M=p.k+2,N=2*M,c=2*M*p.r*p.r+4*p.r*(p.s-1);
+    return{pieces:t4build(p.k,p.r,p.s,p.c||T4C),k:p.k,n:N,N,count:c,formula:`2(k+2)r² + 4r(s−1) = 2·${M}·${p.r}² + 4·${p.r}·(${p.s}−1) = <b>${c}</b>`}}
+  if(p.type==='3s'||p.type==='3hs'){
+    const F=FAMS[p.type][p.sf],c=F.f(p.r,p.s);
+    const pieces=p.type==='3s'?special(p.sf,p.r,p.s):F.fixed?tiny(c):halvesOf(special(p.sf,p.r,p.s));
+    return{pieces,k:0,n:5,N:10,count:c,formula:(F.fixed?`<b>${c}</b> half-piece${c>1?'s':''}`:`${F.t} = ${F.sub(p.r,p.s)} = <b>${c}</b>`)+(F.note?`<br><small>${F.note}</small>`:'')};
+  }
+  if(p.type==='3t'){const c=p.r===1?4*p.k+2:4*(4*p.k+2),n=6*p.k+3;
+    return{pieces:triples(p.k,p.r),k:3*p.k-1,n,N:2*n,count:c,triple:true,formula:(p.r===1?`4k+2 = 4·${p.k}+2`:`4(4k+2) = 4·(4·${p.k}+2)`)+` = <b>${c}</b><br><small>the spectrum is just these two numbers for each k</small>`}}
+  if(p.type==='3dss'){const j=p.j,r=p.r,s=p.s;
+    if(p.sf==='sp'){const D=specialSliced(j,r),c=5*j*r*r-j;return{pieces:D.strips,outlines:j>1?D.outlines:null,k:0,n:5,N:10,count:c,formula:`5jr² − j = 5·${j}·${r}² − ${j} = <b>${c}</b>`+'<br><small>only r = 1 and r = 2 are drawn: the sheet shows r = 2, and no general layer rule is known</small>'}}
+    const D=doubleSliced(0,j,r,s),c=5*j*r*r+2*r*(s-1);return{pieces:D.strips,outlines:j>1?D.outlines:null,k:0,n:5,N:10,count:c,formula:`5jr² + 2r(s−1) = 5·${j}·${r}² + 2·${r}·(${s}−1) = <b>${c}</b>`}}
+  if(p.type==='3ds'){const n=2*p.k+5,c=n*p.j*p.r*p.r+2*p.r*(p.s-1),D=doubleSliced(p.k,p.j,p.r,p.s);
+    return{pieces:D.strips,outlines:p.j>1?D.outlines:null,k:p.k,n,N:2*n,count:c,formula:`(2k+5)jr² + 2r(s−1) = ${n}·${p.j}·${p.r}² + 2·${p.r}·(${p.s}−1) = <b>${c}</b>`+(p.j===1?'<br><small>j = 1: unsliced thick crescents (“Type 3-double”)</small>':'')};}
+  if(p.type==='3h'){const n=2*p.k+5,c=4*n*p.r*p.r+8*p.r*(p.s-2);
+    return{pieces:halved(p.k,p.r,p.s),k:p.k,n,N:2*n,count:c,half:true,formula:`4(2k+5)r² + 8r(s−2) = 4·${n}·${p.r}² + 8·${p.r}·(${p.s}−2) = <b>${c}</b>`+(p.s===1?'<br><small>s = 1 is an extension, not on the sheet</small>':'')};}
+  const n=2*p.k+5,c=2*n*p.r*p.r+4*p.r*(p.s-2);
+  return{pieces:build(p.k,p.r,p.s),k:p.k,n,N:2*n,count:c,formula:`2(2k+5)r² + 4r(s−2) = 2·${n}·${p.r}² + 4·${p.r}·(${p.s}−2) = <b>${c}</b>`+(p.s===1?'<br><small>s = 1 is an extension, not on the sheet</small>':'')};
+}
+
+/* ---------- drawing ---------- */
+function fill(q,mode,N,r,type){
+  if(type==='2dt'&&(mode==='paper'||mode==='role'))return q.role==='z'?'var(--o)':'var(--c)';
+  if(type==='2dm'&&(mode==='paper'||mode==='role'))return 'var(--bl)';
+  if(type==='2h'&&(mode==='paper'||mode==='role'))return q.role==='o'?'var(--y)':(q.mir?'var(--bl)':'var(--c)');
+  if(type==='2d'&&(mode==='paper'||mode==='role'))return 'var(--c)';
+  if(type==='2s'&&(mode==='paper'||mode==='role'))return q.role==='o'?'var(--y)':(q.t%2?'var(--m2)':'var(--m)');
+  if(type==='2'&&(mode==='paper'||mode==='role'))return q.role==='o'?(q.t%2?'var(--y)':'var(--o)'):'var(--cr)';
+  if(type==='1o'&&(mode==='paper'||mode==='role'))return q.role==='v'?'var(--bl)':'var(--c)';
+  if(type==='1e'&&(mode==='paper'||mode==='role'||mode==='layer'))return q.role==='e'?'var(--g)':'var(--c)';
+  if(type==='4'&&(mode==='paper'||mode==='role'))return q.role==='e'?'var(--y)':q.role==='c'?'var(--g2)':q.mir?'var(--o)':'var(--bl)';
+  if(type==='3t'&&mode==='paper')return q.role==='c'?'var(--g2)':'var(--g)';
+  if((type==='3ds'||type==='3dss')&&mode==='paper')return q.kind==='ins'?'var(--y)':q.kind==='thin'?'var(--m3)':(q.ci%2?'var(--m2)':'var(--m)');
+  const base=type==='3s'||type==='3hs'?'var(--c)':type==='3h'?'var(--bl)':'var(--g)';
+  if(mode==='plain')return q.half==='b'?'var(--line)':'var(--panel)';
+  if(mode==='dir')return`hsl(${q.d/N*360} 55% 66%)`;
+  if(mode==='layer'){const t=r>1?q.m/(r-1):0;return`hsl(${150-t*110} 45% ${70-t*8}%)`}
+  if(mode==='role')return q.role==='c'?'var(--y)':q.role==='k'?'var(--g)':q.role==='x'?'var(--c)':'var(--o)';
+  if(!q.band)return base;
+  const x=q.T[0],up=q.T[1]>=0;return(up?x>1e-9:x<-1e-9)?'var(--y)':'var(--o)';
+}
+function bbox(ps){let a=1e9,b=1e9,c=-1e9,d=-1e9;for(const q of ps)for(const[x,y]of q.pts){if(x<a)a=x;if(y<b)b=y;if(x>c)c=x;if(y>d)d=y}return[a,b,c,d]}
+const path=pts=>'M'+pts.map(p=>p[0].toFixed(4)+' '+(-p[1]).toFixed(4)).join('L')+'Z';
+function vb(bb,pad){const[a,b,c,d]=bb,w=c-a,h=d-b,p=pad*Math.max(w,h);return`${(a-p).toFixed(3)} ${(-d-p).toFixed(3)} ${(w+2*p).toFixed(3)} ${(h+2*p).toFixed(3)}`}
+
+let cur=null;
+function drawMain(){
+  cur=arrangement(st);const{pieces,N}=cur,svg=$('svg');
+  const shown=Math.round(pieces.length*st.build/100);
+  const bb=bbox(pieces),sw=Math.max(bb[2]-bb[0],bb[3]-bb[1])/(svg.clientWidth||600)*1.2;
+  svg.setAttribute('viewBox',vb(bb,.03));
+  let h=`<g stroke="var(--edge)" stroke-width="${sw}" stroke-linejoin="round">`;
+  pieces.forEach((q,i)=>{if(i<shown)h+=`<path data-i="${i}" d="${path(q.pts)}" fill="${fill(q,st.col,N,st.r,st.type)}"/>`});
+  h+='</g>';
+  if(cur.outlines&&st.build>=100)h+=`<g fill="none" stroke="var(--edge)" stroke-width="${sw*2.2}" stroke-linejoin="round" pointer-events="none">${cur.outlines.map(o=>`<path d="${path(o)}"/>`).join('')}</g>`;
+  h+='<path id="hl" fill="none" stroke="var(--hi)" stroke-width="'+(sw*3)+'" stroke-linejoin="round" pointer-events="none"/>';
+  if(st.tips){const seen=new Set();for(const q of pieces.slice(0,shown)){const key=q.T.map(v=>v.toFixed(4)).join();if(seen.has(key))continue;seen.add(key);h+=`<circle cx="${q.T[0]}" cy="${-q.T[1]}" r="${sw*2.6}" fill="var(--hi)" pointer-events="none"/>`}}
+  svg.innerHTML=h;
+  $('count').textContent=pieces.length;
+  $('formula').innerHTML=cur.formula;
+  $('bv').textContent=`${shown} of ${pieces.length} pieces`;
+  $('kv').textContent=st.type==='2dt'?`k = ${st.k}  (${4*st.k+2}-gon)`:st.type==='2dm'?`k = ${st.k}  (${2*st.k+3}-gon)`:st.type==='2h'?`k = ${st.k}  (${2*st.k+6}-gon)`:st.type==='2d'?`k = ${st.k}  (${4*st.k+2}-gon)`:st.type==='2'||st.type==='2s'?`k = ${st.k}  (${2*st.k+4}-gon)`:st.type==='1o'?`k = ${st.k}  (${2*st.k+3}-gon)`:st.type==='1e'?`k = ${st.k}  (${4*st.k}-gon)`:st.type==='4'?`k = ${st.k}  (${2*st.k+4}-gon)`:`k = ${st.k}  (n = ${st.type==='3t'?6*st.k+3:2*st.k+5})`;$('jv').textContent=`j = ${st.j}`;$('rv').textContent=`r = ${st.r}`;$('sv').textContent=st.type==='2dt'?`${t2dtcount(st.k,st.s)} pieces`:st.type==='2dm'?`${2*st.k+1+st.s} pieces`:st.type==='2d'?`${2*st.k+st.s-1} pieces`:st.type==='1e'||st.type==='2'||st.type==='2s'||st.type==='2h'?`N = ${st.s}`:`s = ${st.s}`;
+  const b=st.type==='3s'||st.type==='3hs'?'var(--c)':st.type==='3h'?'var(--bl)':'var(--g)';
+  const L=st.type==='2dt'&&(st.col==='paper'||st.col==='role')?[['var(--c)','trimmed double crescents'],['var(--o)','pieces along the zigzag']]:st.type==='2dm'&&(st.col==='paper'||st.col==='role')?[['var(--bl)','modified double crescents']]:st.type==='2h'&&(st.col==='paper'||st.col==='role')?[['var(--c)','half slice'],['var(--bl)','its mirror-image half'],['var(--y)','halves added by N']]:st.type==='2d'&&(st.col==='paper'||st.col==='role')?[['var(--c)','double crescents']]:st.type==='2s'&&(st.col==='paper'||st.col==='role')?[['var(--m)','slices of the pinwheel crescents'],['var(--y)','strip slices added by N']]:st.type==='2'&&(st.col==='paper'||st.col==='role')?[['var(--cr)','crescents of the pinwheel'],['var(--o)','strip pair'],['var(--y)','strip pair (alternate)']]:st.type==='1o'&&(st.col==='paper'||st.col==='role')?[['var(--c)','piece pointing out from the centre'],['var(--bl)','piece pointing back toward it']]:st.type==='1e'&&st.col!=='dir'&&st.col!=='plain'?[['var(--c)','the regular 4k-gon'],['var(--g)','added by the stretch N']]:st.type==='4'&&(st.col==='paper'||st.col==='role')?[['var(--g2)','centre spiral'],['var(--bl)','ordinary piece'],['var(--o)','mirrored piece'],['var(--y)','added by the stretch s']]:st.type==='3t'&&st.col==='paper'?[['var(--g2)','centre spiral'],['var(--g)','one triple at each corner of the spiral']]:(st.type==='3ds'||st.type==='3dss')&&st.col==='paper'?[['var(--m)','slices of an ordinary crescent'],['var(--m3)','slices of a mirrored crescent'],['var(--y)','slices added by the stretch s']]:{paper:[[b,'pieces'],['var(--o)','S-band / added piece'],['var(--y)','S-band (alternate)']],dir:[['hsl(0 55% 66%)','hue = direction of the piece']],layer:[['hsl(150 45% 70%)','starting shape'],['hsl(40 45% 62%)','outermost layer']],role:[['var(--y)','starting shape'],['var(--g)','tip at an outline corner'],['var(--c)','tip at a sharp (108°) corner'],['var(--o)','tip on an outline edge']],plain:[['var(--panel)','all pieces congruent']]}[st.col];
+  if((st.type==='3ds'||st.type==='3dss')&&st.col==='role')L.splice(0,L.length,['var(--y)','starting spiral'],['var(--g)','ordinary crescent in a layer'],['var(--c)','mirrored crescent in a layer'],['var(--o)','stretch slice']);
+  $('legend').innerHTML=L.map(([c,t])=>`<span><i style="background:${c}"></i>${t}</span>`).join('')+`<span>Hover a piece to see its tip and direction.</span>`;
+}
+function drawPiece(){
+  if(st.type==='3ds'||st.type==='3dss'){const k=st.type==='3dss'?0:st.k,j=st.j,n=2*k+5,P=cres(k,[0,0],0,false),A=P.slice(0,k+3),sw0=[P[P.length-1][0]-P[0][0],P[P.length-1][1]-P[0][1]];
+    const S=A.concat(A.map(([x,y])=>[x+sw0[0]/j,y+sw0[1]/j]).reverse());
+    const xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=Math.max(bb[2]-bb[0],bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.08));
+    let g='';for(let t=1;t<j;t++){const a=A[0],b=A[k+2];g+=`<path d="M${A.map(([x,y])=>(x+sw0[0]*t/j).toFixed(4)+' '+(-(y+sw0[1]*t/j)).toFixed(4)).join('L')}" fill="none" stroke="var(--mute)" stroke-width="${sw*.7}" stroke-dasharray="${sw*2} ${sw*2}"/>`}
+    $('psvg').innerHTML=`<path d="${path(P)}" fill="var(--panel)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>${g}<path d="${path(S)}" fill="var(--m)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`The tile (filled) is one slice of a thick crescent: a zigzag of ${k+2} parallelograms with long sides 1 and width 1/${j}. The whole crescent (outline) is ${k+2} rhombi whose sides follow a regular ${n}-gon’s edge directions; n of them spiral into the regular ${2*n}-gon. Slicing each crescent into j = ${j} strips multiplies the count by j.`;return}
+  if(st.type==='4'){const M=st.k+2,N=2*M,{V,piece}=t4tools(M,st.c||T4C),G=[...Array(N)].map((_,i)=>V(i)),P=piece(0,false),Q=piece(0,true);
+    const all2=[...G,...Q],xs=all2.map(p=>p[0]),ys=all2.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(Q)}" fill="var(--o)" fill-opacity=".45" stroke="var(--mute)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(P)}" fill="var(--bl)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`k = ${st.k}: the regular ${N}-gon with unit sides (dashed), and the piece (filled): a hexagon from the centre to one corner. Its outer edge is the corner plus a part c of one side and 1 − c of the next; its two inner edges are congruent two-step chains. Below it, its mirror image, which the layers also use. The shape is flexible: drag the c slider to change it (now c = ${(st.c||T4C).toFixed(2)}).`;return}
+  if(st.type==='2dt'){const m=2*st.k+1,G=[[0,0]];for(let l=0;l<2*m-1;l++){const p=G[G.length-1];G.push([p[0]+Math.cos(l*Math.PI/m),p[1]+Math.sin(l*Math.PI/m)])}
+    const D=t2dbl(0,m,[0,0]),P=t2trim(0,m,[0,0]),Tri=[D[m+1],D[m+2],D[m+3]],xs=G.concat(D).map(p=>p[0]),ys=G.concat(D).map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(P)}" fill="var(--c)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(Tri)}" fill="none" stroke="var(--hi)" stroke-width="${sw}" stroke-dasharray="${sw*2} ${sw*2}"/>`;
+    $('pdesc').textContent=`k = ${st.k}: the Type 2-double piece of the regular ${2*m}-gon (dashed) with one small triangle trimmed off (red dashes): at its sharp end, the two unit edges meeting at an angle of ${(180-180/m).toFixed(1)}° are replaced by the straight chord between their ends.`;return}
+  if(st.type==='2dm'){const m=2*st.k+3,s=2*Math.tan(Math.PI/m)/Math.tan(Math.PI/(2*m)),R=s/(2*Math.sin(Math.PI/m)),G=[...Array(m)].map((_,i)=>[R*Math.cos(-Math.PI/2+Math.PI/m+2*Math.PI*i/m),R*Math.sin(-Math.PI/2+Math.PI/m+2*Math.PI*i/m)]);
+    const P=t2dmpiece(m,-Math.PI/2,[0,0]),xs=G.concat(P).map(p=>p[0]),ys=G.concat(P).map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(P)}" fill="var(--bl)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/>`;
+    $('pdesc').textContent=`k = ${st.k}: the regular ${m}-gon (dashed) and one piece: a zigzag of ${m-1} unit edges from the centre to the middle of one side, half that side, the corner, half the next side, and the same zigzag turned by 2π/${m} back to the centre. Each zigzag turns by π/${m} per step, and the sides have length 2·tan(π/${m})·cot(π/${2*m}) ≈ ${s.toFixed(3)}.`;return}
+  if(st.type==='2h'){const m=st.k+3,J=st.j,G=[[0,0]];for(let l=0;l<2*m-1;l++){const p=G[G.length-1];G.push([p[0]+J*Math.cos(l*Math.PI/m),p[1]+J*Math.sin(l*Math.PI/m)])}
+    const H=t2halves(0,m,J),xs=G.map(p=>p[0]),ys=G.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(t2cres(0,m).map(([x,y])=>[x*J,y*J]))}" fill="var(--panel)" stroke="var(--mute)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(H[1])}" fill="var(--bl)" fill-opacity=".5" stroke="var(--mute)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(H[0])}" fill="var(--c)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`k = ${st.k}, j = ${J}: a Type 2-sliced slice of the regular ${2*m}-gon with side ${J} (pale crescent), cut in half along its mirror line. The piece is one half (dark); the other half is its mirror image. Tip angle π/${m}.`;return}
+  if(st.type==='2d'){const m=2*st.k+1,G=[[0,0]];for(let l=0;l<2*m-1;l++){const p=G[G.length-1];G.push([p[0]+Math.cos(l*Math.PI/m),p[1]+Math.sin(l*Math.PI/m)])}
+    const P=t2dbl(0,m,[0,0]),A=t2cres(0,m),B=t2cres(1,m),xs=G.concat(P).map(p=>p[0]),ys=G.concat(P).map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(P)}" fill="var(--c)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(A)}" fill="none" stroke="var(--ink)" stroke-width="${sw*.6}" stroke-dasharray="${sw*2} ${sw*2}"/>`;
+    $('pdesc').textContent=`k = ${st.k}: two neighbouring Type 2 crescents of the regular ${2*m}-gon with unit sides (dashed), glued along the ${m-1} edges they share. The dashed line inside shows the two halves; the piece itself has no cut.`;return}
+  if(st.type==='2s'){const m=st.k+2,J=st.j,G=[[0,0]];for(let l=0;l<2*m-1;l++){const p=G[G.length-1];G.push([p[0]+J*Math.cos(l*Math.PI/m),p[1]+J*Math.sin(l*Math.PI/m)])}
+    const P=t2slice(0,m,J),xs=G.map(p=>p[0]),ys=G.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(t2cres(0,m).map(([x,y])=>[x*J,y*J]))}" fill="var(--m3)" stroke="var(--mute)" stroke-width="${sw}" stroke-linejoin="round"/><path d="${path(P)}" fill="var(--m)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`k = ${st.k}, j = ${J}: the Type 2 crescent of the regular ${2*m}-gon with side ${J} (pale), cut into ${J} slices; the piece is one slice (dark). Its long sides are ${J}, its short end is 1, and its tip angle is still π/${m}.`;return}
+  if(st.type==='2'){const m=st.k+2,G=[[0,0]];for(let j=0;j<2*m-1;j++){const p=G[G.length-1];G.push([p[0]+Math.cos(j*Math.PI/m),p[1]+Math.sin(j*Math.PI/m)])}
+    const P=t2cres(0,m),xs=G.map(p=>p[0]),ys=G.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(P)}" fill="var(--cr)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`k = ${st.k}: a crescent cut from the regular ${2*m}-gon with unit sides (dashed). Its outer edge is ${m} consecutive sides; its inner edge is the same sides taken one step later, so its tip angle is π/${m}. It is a row of ${m-1} rhombi.`;return}
+  if(st.type==='1o'){const n=2*st.k+3,a=2*Math.PI/n,R=1/(2*Math.sin(a/2)),V=i=>[R*Math.cos(Math.PI/2+i*a),R*Math.sin(Math.PI/2+i*a)],G=[...Array(n)].map((_,i)=>V(i)),P=t1notch([[0,0],V(0),V(1)],R).pts;
+    const xs=G.map(p=>p[0]),ys=G.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(P)}" fill="var(--c)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`k = ${st.k}: an isosceles triangle with apex angle 2π/${n} and base 1, so ${n} of them meet at the centre of the regular ${n}-gon (dashed). The legs carry the same S-shaped notch as Type 1-even.`;return}
+  if(st.type==='1e'){const n=4*st.k,a=2*Math.PI/n,R=1/(2*Math.sin(a/2)),th0=Math.PI/2-a/2,V=i=>[R*Math.cos(th0+i*a),R*Math.sin(th0+i*a)],G=[...Array(n)].map((_,i)=>V(i)),P=t1notch([[0,0],V(0),V(1)],R).pts;
+    const xs=G.map(p=>p[0]),ys=G.map(p=>p[1]),bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],sw=(bb[3]-bb[1])/260*1.3;
+    $('psvg').setAttribute('viewBox',vb(bb,.06));
+    $('psvg').innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/><path d="${path(P)}" fill="var(--c)" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+    $('pdesc').textContent=`k = ${st.k}: an isosceles triangle with apex angle π/${2*st.k} and base 1, so ${n} of them meet at the centre of the regular ${n}-gon (dashed). The two legs carry the same S-shaped notch, one turned the other way round, so pieces only meet leg to leg or base to base.`;return}
+  const k=cur.k,{n,shape,e}=tools(k);
+  const d=0,pts=shape([0,0],d),W=pts[k+2];
+  const ang=Math.atan2(W[1],W[0]),rot=-Math.PI/2-ang,R=([x,y])=>[x*Math.cos(rot)-y*Math.sin(rot),x*Math.sin(rot)+y*Math.cos(rot)];
+  const poly=[W];let[x,y]=W;for(let j=1;j<n;j++){const v=e(d+2*j);x+=v[0];y+=v[1];poly.push([x,y])}
+  const cx=poly.reduce((a,p)=>a+p[0],0)/n,cy=poly.reduce((a,p)=>a+p[1],0)/n;
+  const P=pts.map(R),G=poly.map(R),O=R([cx,cy]),t1=R([0,0]),t2=G[(k+4)%n];
+  const all=[...P,...G],xs=all.map(p=>p[0]),ys=all.map(p=>p[1]);
+  const bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+  const sw=(bb[3]-bb[1])/260*1.3,svg=$('psvg');svg.setAttribute('viewBox',vb(bb,.06));
+  if(st.type==='3t'){const tq=triples(st.k,1)[0],TP=tq.pts.map(R),IN=tq.inner.map(l=>l.map(R));
+    const all2=[...TP,...G],xs2=all2.map(p=>p[0]),ys2=all2.map(p=>p[1]),bb2=[Math.min(...xs2),Math.min(...ys2),Math.max(...xs2),Math.max(...ys2)],sw2=(bb2[3]-bb2[1])/260*1.3;
+    svg.setAttribute('viewBox',vb(bb2,.06));
+    svg.innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw2}" stroke-dasharray="${sw2*4} ${sw2*3}"/><path d="${path([O,t1,t2])}" fill="var(--bg)" stroke="var(--ink)" stroke-width="${sw2}"/><path d="${path(TP)}" fill="var(--y)" stroke="var(--ink)" stroke-width="${sw2}" stroke-linejoin="round"/>`+IN.map(l=>`<path d="M${l.map(p=>p[0].toFixed(4)+' '+(-p[1]).toFixed(4)).join('L')}" fill="none" stroke="var(--mute)" stroke-width="${sw2}" stroke-dasharray="${sw2*3} ${sw2*2}"/>`).join('')+`<text x="${(O[0]*2+t1[0]+t2[0])/4}" y="${-(O[1]*2+t1[1]+t2[1])/4}" font-size="${sw2*10}" text-anchor="middle" dominant-baseline="middle" fill="var(--ink)">2π/${n}</text>`;
+    $('pdesc').textContent=`k = ${st.k}: three Type 3 pieces of the regular ${n}-gon (n = 6k+3, so Type 3 with k = ${3*st.k-1}) fanned around a shared tip; dashed lines show the three. The fan’s tip angle is 3π/${n}.`;return}
+  const tx=(O[0]*2+t1[0]+t2[0])/4,ty=(O[1]*2+t1[1]+t2[1])/4,pf=st.type==='3s'||st.type==='3hs'?'var(--c)':'var(--y)',H=st.type==='3h'||st.type==='3hs'?halves(pts,k)[0].map(R):null;
+  svg.innerHTML=`<path d="${path(G)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*4} ${sw*3}"/>`+
+   `<path d="${path([O,t1,t2])}" fill="var(--bg)" stroke="var(--ink)" stroke-width="${sw}"/>`+
+   (H?`<path d="${path(P)}" fill="none" stroke="var(--mute)" stroke-width="${sw}" stroke-dasharray="${sw*2} ${sw*2}"/><path d="${path(H)}" fill="${pf}" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`:`<path d="${path(P)}" fill="${pf}" stroke="var(--ink)" stroke-width="${sw}" stroke-linejoin="round"/>`)+
+   `<text x="${tx}" y="${-ty}" font-size="${sw*11}" text-anchor="middle" dominant-baseline="middle" fill="var(--ink)">2π/${n}</text>`;
+  $('pdesc').textContent=(st.type==='3hs'?'Half of the pentagon piece, cut along its mirror axis (dashed: the other half, its mirror image). It is a convex quadrilateral, so 1 is in the spectrum. The full piece: ':'')+(st.type==='3h'?`Half of the k = ${k} Type 3 piece, cut along its mirror axis (dashed: the other half, its mirror image). The full piece: `:'')+(st.type==='3s'?'The pentagon piece (the k = 0 member of the Type 3 family): ':`k = ${k}: `)+`a regular ${n}-gon with unit sides. The piece’s outer edge is ${k+3} consecutive sides; its inner edge is the other ${k+2} sides reflected across the chord. Its two sharp tips have angle π/${n}.`;
+}
+function drawChips(){
+  const m=new Map(),addv=(v,c)=>{if(!m.has(v))m.set(v,[]);m.get(v).push(c)};
+  if(st.type==='3t'){for(let k=1;k<=6;k++){addv(4*k+2,{k,r:1});addv(4*(4*k+2),{k,r:2})}
+    $('specp').textContent=`Each k has a finite spectrum {4k+2, 4(4k+2)}. The chips list it for k = 1 to 6; click one to see it.`}
+  else if(st.type==='2dt'){for(let s=1;s<=12;s++)addv(t2dtcount(st.k,s),{s});
+    $('specp').textContent=st.k===1?'With k = 1 every count from 2 on works. Click one to see it.':`For this piece: 2k = ${2*st.k}, 2k+1 = ${2*st.k+1}, and every even number from 2k+2 = ${2*st.k+2} on. Click one to see it.`}
+  else if(st.type==='2dm'){for(let s=1;s<=2;s++)addv(2*st.k+1+s,{s});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {2k+2, 2k+3} = {${2*st.k+2}, ${2*st.k+3}}. Click one to see it.`}
+  else if(st.type==='2h'){const b=4*((st.k+2)*st.j-1);for(let s=1;s<=40;s++)addv(4*s+b,{s});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {4N + 4((k+2)j − 1) : N ≥ 1}, every multiple of 4 from ${b+4} on. Click one to see it.`}
+  else if(st.type==='2d'){for(let s=1;s<=3;s++)addv(2*st.k+s-1,{s});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {2k, 2k+1, 2k+2} = {${2*st.k}, ${2*st.k+1}, ${2*st.k+2}}. Click one to see it.`}
+  else if(st.type==='2s'){const b=2*((st.k+1)*st.j-1);for(let s=1;s<=40;s++)addv(2*s+b,{s});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {2N + 2((k+1)j − 1) : N ≥ 1}, every even number from ${b+2} on. Click one to see it.`}
+  else if(st.type==='2'){for(let s=1;s<=40;s++)addv(2*s+2*st.k,{s});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {2N + 2k : N ≥ 1}, every even number from ${2*st.k+2} on. Click one to see it.`}
+  else if(st.type==='1o'){const n=2*st.k+3;for(let r=1;r<=40;r++)addv(n*r*r,{r});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {(2k+3)r² : r ≥ 1} = {${n}r²}. Click one to see it.`}
+  else if(st.type==='1e'){for(let s=1;s<=40;s++)addv(4*s+4*(st.k-1),{s});
+    $('specp').textContent=`The sheet’s spectrum for this piece: {4N + 4(k−1) : N ≥ 1}, every multiple of 4 from ${4*st.k} on. Click one to see it.`}
+  else if(st.type==='4'){const M=st.k+2;for(let r=1;r<=12;r++)for(let s=1;s<=40;s++)addv(2*M*r*r+4*r*(s-1),{r,s});
+    $('specp').textContent=`The sheet’s spectrum for the ${2*M}-gon piece: {2(k+2)r² + 4r(s−1) : r, s ≥ 1}, smallest first. Click one to see it.`}
+  else if(st.type==='3dss'){const j=st.j;for(let r=1;r<=12;r++){for(let s=1;s<=40;s++)addv(5*j*r*r+2*r*(s-1),{sf:'dec',r,s});if(r<=2)addv(5*j*r*r-j,{sf:'sp',r,s:1})}
+    $('specp').textContent=`The sheet’s spectrum for the pentagon slice with j = ${j}: {5jr² − j, 5jr² + 2r(s−1)}, smallest first. 5jr² − j is listed only for r ≤ 2 here, the sizes that can be drawn. Click one to see it.`}
+  else if(st.type==='3s'||st.type==='3hs'){const F=FAMS[st.type];
+    for(const key of Object.keys(F)){if(key==='D')continue;for(let r=1;r<=12;r++){if(key==='C'){for(let s=2;s<=40;s++)addv(F.C.f(r,s),{sf:'C',r,s})}else addv(F[key].f(r),{sf:key,r,s:2});if(F[key].fixed)break}}
+    $('specp').textContent=st.type==='3s'?'The sheet’s spectrum for the pentagon piece: {2r(5r−2), 2r(5r−1)−1, 10r²+4r(s−2) : r ≥ 1, s ≥ 2}, smallest first. Click one to see it.':'The sheet’s spectrum for the half pentagon piece, with 4r(5r−1)−2 in place of the sheet’s 4r(5r−1)−1: {1, 2, 4r(5r−2), 4r(5r−1)−2, 20r²+8r(s−2)}, smallest first. Click one to see it.'}
+  else if(st.type==='3ds'){const n=2*st.k+5;for(let r=1;r<=12;r++)for(let s=1;s<=40;s++)addv(n*st.j*r*r+2*r*(s-1),{r,s});
+    $('specp').textContent=`Every number of slices (mirror images allowed) this construction forms into a convex shape for j = ${st.j}: {(2k+5)jr² + 2r(s−1) : r, s ≥ 1}, smallest first. Click one to see it.`}
+  else if(st.type==='3h'){const n=2*st.k+5;for(let r=1;r<=12;r++)for(let s=1;s<=40;s++)addv(4*n*r*r+8*r*(s-2),{r,s});
+    $('specp').textContent='Every number of copies of the half-piece (mirror images allowed) this construction forms into a convex shape, {4nr² + 8r(s−2) : r, s ≥ 1}, smallest first. Click one to see it.'}
+  else{const n=2*st.k+5;for(let r=1;r<=12;r++)for(let s=1;s<=40;s++)addv(2*n*r*r+4*r*(s-2),{r,s});
+    $('specp').textContent='Every number of copies of this one piece that this construction can form into a convex shape, {2nr² + 4r(s−2) : r, s ≥ 1}, smallest first. Click one to see it.'}
+  const vals=[...m.keys()].sort((a,b)=>a-b).slice(0,36),now=cur.count;
+  const lab=c=>{if(st.type==='2dt')return`${t2dtcount(st.k,c.s)} pieces`;if(st.type==='2dm')return`${2*st.k+1+c.s} pieces`;if(st.type==='2h')return`N=${c.s}`;if(st.type==='2d')return`${2*st.k+c.s-1} pieces`;if(st.type==='2'||st.type==='2s')return`N=${c.s}`;if(st.type==='1o')return`r=${c.r}`;if(st.type==='1e')return`N=${c.s}`;if(st.type==='3t')return`k=${c.k}, ${c.r===1?'spiral':'spiral + ring'}`;const F=c.sf&&FAMS[st.type][c.sf];if(F&&F.fixed)return F.t+' half-pieces';return(F?F.t+', ':'')+`r=${c.r}`+(!F||c.sf==='C'||c.sf==='dec'?`, s=${c.s}`:'')};
+  $('chips').innerHTML=vals.map(v=>`<button data-v="${v}" class="${v===now?'on':''}" title="${m.get(v).map(lab).join('; ')}">${v}</button>`).join('')+'<span class="lab" style="align-self:center">…</span>';
+  $('chips').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;Object.assign(st,m.get(+b.dataset.v)[0]);st.build=100;all()};
+}
+function drawStrip(){
+  const f=st.fam,items=[],L=lim(st);
+  if(f==='f')for(const sf of Object.keys(FAMS[st.type]||{}))items.push({...st,sf,s:sf==='C'?Math.max(2,st.s):st.s,r:sf==='sp'?Math.min(st.r,2):st.r});
+  else for(let i=0;i<7;i++){const p={...st};p[f]=L[f][0]+i;if(p[f]>L[f][1])break;items.push(p)}
+  $('strip').innerHTML=items.map(p=>{const B=arrangement(p),bb=bbox(B.pieces),sw=Math.max(bb[2]-bb[0],bb[3]-bb[1])/(p.type==='3ds'?160*Math.sqrt(p.j*p.r):140);
+    const g=B.pieces.map(q=>`<path d="${path(q.pts)}" fill="${fill(q,st.col,B.N,p.r,p.type)}"/>`).join('');
+    const on=p.k===st.k&&p.r===st.r&&p.s===st.s&&p.sf===st.sf&&p.j===st.j;
+    const F=FAMS[p.type]&&FAMS[p.type][p.sf],lab=p.type==='2dt'?`k=${p.k}: ${t2dtcount(p.k,p.s)}`:p.type==='2dm'?`k=${p.k}: ${2*p.k+1+p.s}`:p.type==='2h'?`k=${p.k} j=${p.j} N=${p.s}`:p.type==='2d'?`k=${p.k}: ${2*p.k+p.s-1}`:p.type==='2s'?`k=${p.k} j=${p.j} N=${p.s}`:p.type==='2'?`k=${p.k} N=${p.s}`:p.type==='1o'?`k=${p.k} r=${p.r}`:p.type==='1e'?`k=${p.k} N=${p.s}`:p.type==='3t'?`k=${p.k} ${p.r===1?'spiral':'+ ring'}`:!F?`k=${p.k}`+(p.type==='3ds'?` j=${p.j}`:'')+` r=${p.r} s=${p.s}`:F.fixed?`${F.t} half-piece${F.t==='1'?'':'s'}`:`${F.t}`+(p.type==='3dss'?` j=${p.j}`:'')+` r=${p.r}`+(p.sf==='C'||p.sf==='dec'?` s=${p.s}`:'');
+    return`<button class="${on?'on':''}" data-j='${JSON.stringify({k:p.k,j:p.j,r:p.r,s:p.s,sf:p.sf,c:p.c})}'><svg viewBox="${vb(bb,.04)}"><g stroke="var(--edge)" stroke-width="${sw}">${g}</g></svg>${lab} · <b>${B.pieces.length}</b></button>`}).join('');
+}
+const NOTES={
+ '3':['The piece is an equilateral n-gon (n = 2k+5) whose edges point in the same n directions as a regular n-gon’s edges. Its outer chain is k+3 consecutive sides of a regular n-gon; its inner chain is the other k+2 sides reflected across the chord.',
+  'Construction: 2n pieces spiral around a centre to make a regular 2n-gon (r=1, s=2). Each extra layer puts 3 pieces on every corner and 2 on every edge point of the previous outline. Each step of s pulls the two halves one edge apart and fills the gap with 4r pieces.',
+  'The rule was read from the vector figures in the one-pager and checked numerically for k ≤ 3, r ≤ 4, s ≤ 5: no overlaps, and the union equals its convex hull. Type 3 takes k ≥ 1; the pentagon piece (k = 0) is Type 3-special.',
+  's = 1 (2nr² − 4r) is not drawn on the sheet for Type 3. It is this page’s extension: the two half-fans move one edge closer, minus the 4r strip pieces. For the pentagon it is exactly the sheet’s Type 3-special family 2r(5r−2).'],
+ '3ds':['The tile is a slice of a thick crescent. A thick crescent is the zigzag chain Y (k+2 unit edges, turning by 2π/n) swept sideways by one unit: k+2 rhombi. n of them spiral around a centre into the regular 2n-gon. Slicing every crescent into j parallel strips gives the tile; j = 1 is the unsliced “Type 3-double”.',
+  'Surround (r): layer m adds, in each of the n sectors, m+1 ordinary crescents stacked side by side (the first one translated m times along the vector from the spiral’s centre to a crescent’s far tip) and m mirrored crescents, the first fitted into the notch beside the stack and the rest shifted further back. That is n(2m+1) crescents per layer, n·r² in all, filling the 2n-gon with sides r.',
+  'Stretch (s): cut along two crescent chains through the centre (directions 2n−2 and n−1, continued outward through every layer) and slide one half by one slice width. On one side the new slice widens an ordinary stack; on the other it is a mirrored slice wedged between two ordinary crescents. That adds 2r slices per step: 2r(s−1).',
+  'This construction was worked out step by step from the sheet’s r = 1 and r = 2 drawings and checked numerically for k ≤ 3, r ≤ 5, j ≤ 4, s ≤ 4: every tile congruent (mirror images allowed), no overlaps, the union equals its convex hull. The sheet’s own s = 2 drawing groups some slices differently; the count is the same.'],
+ '3t':['The tile is three Type 3 pieces fanned around a shared tip, using the regular (6k+3)-gon: that is Type 3 with k′ = 3k − 1, whose pieces come 2(6k+3) to a spiral.',
+  'The 4k+2 tiling is the Type 3 spiral (r = 1, s = 2) with its pieces grouped in consecutive threes. The 4(4k+2) tiling is the Type 3 r = 2 tiling: every corner of the inner 2n-gon carries exactly three pieces fanned around it, one triple per corner, plus the 4k+2 central triples.',
+  'The spectrum is finite. From r = 3 on, points along the edges of an outline carry only two pieces, and each stretch adds 4r pieces; neither splits into triples. Both tilings were checked numerically for k ≤ 4: all triples congruent, no overlaps, union equals its convex hull.'],
+ '2dt':['Not on the sheet: an extra Type contributed by Andrew Bayly. Take the Type 2-double piece and trim off the small triangle at its sharp end, where two unit edges meet at an angle of π − π/(2k+1): replace them by the straight chord. Type 2-double-mod grows the tile and shrinks the spectrum; trimming shrinks the tile and grows it.',
+  'All three Type 2-double arrangements (2k, 2k+1, 2k+2) survive: every trimmed corner lies on the outline, and cutting it off leaves the shape convex.',
+  'New, general case: a zigzag of 2j+1 unit edges alternating between two neighbouring directions. Half a pinwheel (k+1 pieces) sits at each end, and one piece at every inner corner of the zigzag; the trimmed chords line up into the long straight top and bottom edges. That gives every even number 2k+2+2j.',
+  'First case, k = 1: the zigzag may also have even length, with the far end turned differently, so every count from 2 on is reached. All arrangements checked numerically for k ≤ 6 (k = 1 up to 12 pieces): no overlaps, union equals its convex hull.'],
+ '2dm':['The polygon is the regular (2k+3)-gon, an odd polygon. From its centre, a zigzag of 2k+2 unit edges, turning by π/(2k+3) each step and symmetric about the apothem, reaches exactly the middle of a side; that fixes the side length at 2·tan(π/(2k+3))·cot(π/(4k+6)).',
+  'The piece is the wedge between two neighbouring zigzags: zigzag, half a side, a corner, half the next side, the next zigzag back. The zigzags are what make it a “double crescent”: the dashed outline in the sheet’s sample runs between them.',
+  '2k + 3: the pieces turned by 2π/(2k+3) about the centre fill the regular (2k+3)-gon.',
+  '2k + 2: k+1 consecutive pieces around one point and the same k+1 turned half a turn around a point one unit away, which closes up exactly (the arrangement is symmetric about the midpoint). Both read off the sheet’s vector drawing and checked numerically for k ≤ 6: no overlaps, union equals its convex hull.'],
+ '2h':['The polygon is the regular 2(k+3)-gon with side j. The piece is half a Type 2-sliced slice: each slice (a strip of k+2 parallelograms, one unit wide) is mirror-symmetric, and cutting it along its mirror line gives two halves that are mirror images. Tip angle π/(k+3).',
+  'Every arrangement is a Type 2-sliced arrangement for the same polygon (k + 1 in that Type’s numbering) with every slice halved, so the count doubles: 4N + 4((k+2)j − 1).',
+  'As the sheet notes, every count is a multiple of 4 and already in Type 1-even’s list. Checked numerically for k ≤ 5, j ≤ 4 and several N: no overlaps, union equals its convex hull.'],
+ '2d':['The polygon is the regular 2(2k+1)-gon. The piece is two neighbouring Type 2 crescents of it glued together along the 2k edges they share: a double crescent, tip angle 2π/(2k+1).',
+  '2k + 1: Type 2’s pinwheel of 2(2k+1) crescents, paired off two at a time: the regular polygon with side 2.',
+  '2k: Type 2’s N = 1 shape (the strip removed), with its crescents paired the same way.',
+  '2k + 2: two half-pinwheels around a centre segment of length 1. Around one end, the double crescents starting at directions 0, 2, …, 2k; around the other, those starting at 2k+1, 2k+3, …, 4k+1. Checked numerically for k ≤ 6: no overlaps, union equals its convex hull.'],
+ '2s':['The piece is a slice of the Type 2 crescent: take the crescent of the regular 2(k+2)-gon with side j and cut it into j strips parallel to its first side. Each slice has long sides j and a short end 1, and the same tip angle π/(k+2).',
+  'N = 1 is Type 2’s N = 1 shape scaled by j, with every crescent cut into j slices: 2(k+1)j pieces.',
+  'Stretch (N): the strip that Type 2 inserted whole now comes one unit at a time. Each step slides half the shape one unit and adds a pair of slices. So the count is 2(k+1)j + 2(N − 1) = 2N + 2((k+1)j − 1). N = j + 1 is the regular 2(k+2)-gon with side 2j; j = 1 is exactly Type 2.',
+  'As the sheet notes, every count here is already in Type 2’s list: this Type adds shapes, not numbers. Checked numerically for k ≤ 5, j ≤ 4 and several N: no overlaps, union equals its convex hull.'],
+ '2':['The piece is a crescent cut from the regular 2(k+2)-gon with unit sides: its outer edge is k+2 consecutive sides, its inner edge is the same sides taken one step later (the first side moved to the end). So it is a row of k+1 rhombi, with tip angle π/(k+2).',
+  'N = 2 is the regular 2(k+2)-gon with side 2: all 2(k+2) crescents spin around the centre.',
+  'Stretch (N): the two crescents built on the horizontal side form a strip right across the polygon. Removing it gives N = 1; each extra copy adds 2 pieces. So the count is 2(k+2) + 2(N − 2) = 2N + 2k: every even number from 2k + 2 on.',
+  'Checked numerically for k ≤ 5, N ≤ 5: no overlaps, union equals its convex hull. As in Type 1-even there is no r: every count it could add is already in the list.'],
+ '1o':['The piece is an isosceles triangle with apex angle 2π/(2k+3) and base 1, notched like Type 1-even. 2k+3 of them meet at a point to make the regular (2k+3)-gon (k = 1: the pentagon).',
+  'Growing (r): scale each of the 2k+3 sectors by r and cut it into an r × r triangular grid. That gives r² copies per sector: r(r+1)/2 pointing out from the centre and r(r−1)/2 pointing back. So the count is (2k+3)r².',
+  'No stretch: an odd polygon has no pair of parallel opposite sides to slide apart, so r is the only way to grow it.',
+  'The S notch fits the grid: pieces meet leg to leg or base to base everywhere. Checked numerically for the pentagon, heptagon and larger, r ≤ 4: no overlaps, union equals its convex hull.'],
+ '1e':['The piece is an isosceles triangle with apex angle π/(2k) and base 1. Its legs carry an S-shaped notch, mirrored between the two legs, so pieces can only meet leg to leg or base to base. 4k of them meet at a point to make the regular 4k-gon (k = 1: the square).',
+  'Stretch (N): cut along a diameter made of two legs and slide one half one unit along the two sides at its ends. The gap is a parallelogram of two notched rhombi, 4 pieces, so the count is 4k + 4(N − 1) = 4N + 4(k − 1): every multiple of 4 from 4k on.',
+  'The notch has to be an S, not a single bump: in the inserted band two pieces share a leg with their tips at opposite ends. With the S notch every arrangement was checked numerically for k ≤ 5, N ≤ 4: no overlaps, union equals its convex hull.',
+  'No r: the polygon can be grown by coronas (4k·r² pieces, as in Type 1-odd), but every such count is a multiple of 4 that is at least 4k, so it is already in the list. The sheet lists numbers, not constructions.'],
+ '4':['The polygon is the regular 2(k+2)-gon with unit sides. The piece is a hexagon with one vertex at the centre and one at a corner of the polygon: its outer edge is the corner plus a part c of one side and 1 − c of the next, and its two inner edges are congruent two-step chains, so pieces nest into a spiral of 2(k+2). The shape is flexible: any c between 0 and 1/2 works. The c slider changes it; the default 1/3 matches the sheet’s hexagon and octagon, and its decagon uses about 0.31. Every c strictly between 0 and 1 works with the same construction.',
+  'Surround (r): layer m puts a strip of 2m − 1 pieces along each side, alternating ordinary and mirrored. The m ordinary pieces all point the same way: the first hangs from a corner of the previous layer (the spiral piece’s copy, moved by m − 1 times the centre-to-corner vector), and each next one is one side vector further along. The m − 1 mirrored pieces each sit one centre-to-corner step beyond an ordinary one, with their outer edge on its inner edge.',
+  'Stretch (s): cut the shape down the middle, perpendicular to two opposite sides, and slide one half along those sides by one unit. The gap is a column with one ordinary and one mirrored piece in each of the 2r rows, so each step adds 4r pieces: 2(k+2)r² + 4r(s−1).',
+  'Worked out step by step from the sheet’s drawings and checked numerically for k ≤ 6, r ≤ 5, s ≤ 4 at c = 1/3, and for c from 0.01 to 0.99 at r = 2 and 3: every piece congruent, mirror images allowed, no overlaps, and the union equals its convex hull.'],
+ '3dss':['Two families for the pentagon slice (k = 0). The decagon family 5jr² + 2r(s−1) is exactly Type 3-double-sliced with k = 0: spiral, stack-and-notch layers, and the stretch. It was checked numerically for r ≤ 4, j ≤ 3, s ≤ 3.',
+  'The special family 5jr² − j starts from a 4-crescent core (two ordinary, two mirrored, symmetric under a half-turn). Its r = 2 tiling here is the sheet’s drawing, read from the PDF and grouped into 19 whole crescents (12 ordinary, 7 mirrored), each cut into j slices.',
+  'Larger r are not drawn. The outline is known for every r (the regular decagon of side r with four sides one longer and four one shorter), but the layers are not determined: there are at least 50 ways to fill the r = 2 layer, and the sheet’s choice does not follow the decagon’s stack-and-notch pattern. The special family cannot be stretched.'],
+ '3h':['The tile is half of a Type 3 piece, cut along the piece’s mirror axis. The two halves are mirror images, so this Type allows reflected copies.',
+  'Every Type 3 arrangement becomes a Type 3-half arrangement by cutting each piece in two, so the counts double: 4(2k+5)r² + 8r(s−2). The sheet’s figures match this exactly: one cut per piece, along the axis.',
+  'k ≥ 1, as in Type 3; the half of the pentagon piece is the sheet’s separate Type 3-half-special. s = 1 is this page’s extension, as in Type 3.'],
+ '3hs':['The tile is half of the pentagon piece, cut along its mirror axis: a convex quadrilateral (angles 36°, 108°, 90°, 126°). One half is convex on its own; two halves joined along a unit edge, the second turned 180°, make the convex hexagon of the sheet’s first drawing.',
+  'The other families are the Type 3-special arrangements with every piece cut in half, so their counts double: 4r(5r−2), 20r²+8r(s−2), and from the notch-capped shapes 4r(5r−1)−2 and 20r²−4.',
+  'Discrepancy: the sheet lists 4r(5r−1)−1, but its drawing has 14 halves (= 4r(5r−1)−2 at r = 1), and halving 2r(5r−1)−1 gives −2. A computer search found no way to reach 15 by adding up to three halves to the 12-half shape, or one to the 14-half shape. This page uses −2.',
+  'The 16-half drawing (the 8-piece shape halved) is convex but not in the sheet’s list; it is family “20r²−4 (unlisted)”. All families were checked numerically: no overlaps, union equals its convex hull.'],
+ '3s':['Same construction rules as Type 3, applied to the pentagon piece. The sheet draws each family only at r = 1; larger r here come from the general surround rule: wherever the outline turns by t steps of 36°, a layer places t + 2 pieces (2 on a straight edge, 3 at a 144° corner, 4 at a 108° corner).',
+  '2r(5r−2): the two half-fans pushed together (s = 1), giving 6 pieces at r = 1. 2r(5r−1)−1: the same shape with one extra piece in its bottom notch, 7 at r = 1. 10r²+4r(s−2): the regular 10-gon (s = 2) and its stretches.',
+  'Unlisted: the sheet also draws an 8-piece shape with both notches capped. It is convex, but 8 is not in the sheet’s spectrum. Surrounded, it gives 10r² − 2 (8, 38, 88, …). It is included here as family “10r²−2 (unlisted)”.',
+  'Every family was checked numerically for r ≤ 5 (and s ≤ 5): no overlaps, and the union equals its convex hull.']};
+function all(){
+  const L=lim(st);for(const p of['k','j','r','s'])st[p]=Math.min(L[p][1],Math.max(L[p][0],st[p]));
+  if(st.type==='3s'&&st.fam==='k')st.fam='f';if(st.type==='3'&&st.fam==='f')st.fam='k';
+  const sp=st.type==='3s'||st.type==='3hs'||st.type==='3dss';
+  const F=FAMS[st.type];if(F&&!F[st.sf])st.sf=F.B?'B':'sp';
+  if(F)$('sfam').innerHTML=Object.entries(F).map(([key,v])=>`<button data-v="${key}">${v.lab||v.t}</button>`).join('');
+  $('famlab').textContent=st.type==='3hs'?'Family (half pentagon piece)':st.type==='3dss'?'Family (pentagon slice)':'Family (pentagon piece)';
+  $('type').value=st.type;$('krow').hidden=sp;$('famrow').hidden=!sp;$('srow').hidden=(sp&&st.sf!=='C'&&st.sf!=='dec')||st.type==='3t'||st.type==='1o';$('jrow').hidden=st.type!=='3ds'&&st.type!=='3dss'&&st.type!=='2s'&&st.type!=='2h';$('jl').textContent=st.type==='2h'?'j: slices per crescent':st.type==='2s'?'j: slices per crescent (j = 1 is Type 2)':'j: slices per crescent (j = 1 is “Type 3-double”)';$('sl').textContent=st.type==='2dt'?'which arrangement (number of pieces)':st.type==='2dm'?'which arrangement (count = 2k+2, 2k+3)':st.type==='2h'?'N: stretch (N = j+1 is the regular 2(k+3)-gon)':st.type==='2d'?'which arrangement (count = 2k, 2k+1, 2k+2)':st.type==='2s'?'N: stretch (N = j+1 is the regular 2(k+2)-gon)':st.type==='2'?'N: stretch (N = 2 is the regular 2(k+2)-gon)':st.type==='1e'?'N: stretch (N = 1 is the regular 4k-gon)':st.type==='3ds'||st.type==='3dss'||st.type==='4'?'s: stretch (s = 1 is the regular 2n-gon)':'s: stretch (s = 2 is the regular 2n-gon)';$('rrow').hidden=!!(F&&F[st.sf].fixed)||st.type==='1e'||st.type==='2'||st.type==='2s'||st.type==='2d'||st.type==='2h'||st.type==='2dm'||st.type==='2dt';$('crow').hidden=st.type!=='4';if(st.type==='4'){if(!(st.c>0&&st.c<1))st.c=1/3;$('cin').value=st.c;$('cv').textContent=(+st.c).toFixed(2)}
+  drawMain();drawPiece();drawChips();drawStrip();
+  for(const b of $('col').children)b.setAttribute('aria-pressed',b.dataset.v===st.col);
+  for(const b of $('sfam').children)b.setAttribute('aria-pressed',b.dataset.v===st.sf);
+  for(const b of $('famv').children){b.setAttribute('aria-pressed',b.dataset.v===st.fam);b.hidden=(b.dataset.v==='s'&&st.type==='1o')||(b.dataset.v==='r'&&(st.type==='1e'||st.type==='2'||st.type==='2s'||st.type==='2d'||st.type==='2h'||st.type==='2dm'||st.type==='2dt'))||(b.dataset.v==='s'&&st.type==='3t')||(b.dataset.v==='j'&&st.type!=='3ds'&&st.type!=='3dss'&&st.type!=='2s'&&st.type!=='2h')||(b.dataset.v==='k'&&sp)||(b.dataset.v==='f'&&!sp)||(b.dataset.v==='s'&&sp&&st.sf!=='C'&&st.sf!=='dec')}
+  if(st.fam==='s'&&sp&&st.sf!=='C'&&st.sf!=='dec'){st.fam='r';return all()}
+  if(st.type==='3t'&&st.fam==='s'){st.fam='r';return all()}
+  if((st.type==='1e'||st.type==='2'||st.type==='2s'||st.type==='2d'||st.type==='2h'||st.type==='2dm'||st.type==='2dt')&&st.fam==='r'){st.fam='s';return all()}
+  if(st.type==='1o'&&st.fam==='s'){st.fam='r';return all()}
+  $('famv').querySelector('[data-v="s"]').textContent=st.type==='2d'||st.type==='2dm'||st.type==='2dt'?'vary count':st.type==='1e'||st.type==='2'||st.type==='2s'||st.type==='2h'?'vary N':'vary s';
+  $('kl').textContent=st.type==='2dt'?'k: polygon (regular 2(2k+1)-gon)':st.type==='2dm'?'k: polygon (regular (2k+3)-gon)':st.type==='2h'?'k: polygon (regular 2(k+3)-gon)':st.type==='2d'?'k: polygon (regular 2(2k+1)-gon)':st.type==='2'||st.type==='2s'?'k: polygon (regular 2(k+2)-gon)':st.type==='1o'?'k: polygon (regular (2k+3)-gon)':st.type==='1e'?'k: polygon (regular 4k-gon)':st.type==='4'?'k: polygon (regular 2(k+2)-gon)':st.type==='3t'?'k: piece (polygon with n = 6k+3 sides)':'k: piece (polygon with n = 2k+5 sides)';$('rl').textContent=st.type==='3t'?'size: 1 = spiral, 2 = spiral + ring':'r: surround (layers)';
+  $('notes').innerHTML=NOTES[st.type].map(t=>`<li>${t}</li>`).join('');
+  $('build').value=st.build;$('tips').checked=st.tips;
+  try{localStorage.setItem('cs3',JSON.stringify(st))}catch(e){}
+}
+document.querySelectorAll('.step button').forEach(b=>b.onclick=()=>{st[b.dataset.p]+=+b.dataset.d;st.build=100;all()});
+$('type').onchange=ev=>{st.type=ev.target.value;Object.assign(st,DEF[st.type]);st.build=100;all()};
+$('sfam').onclick=ev=>{const b=ev.target.closest('button');if(b){st.sf=b.dataset.v;if(st.sf==='C'&&st.s<2)st.s=2;st.build=100;all()}};
+$('col').onclick=ev=>{const b=ev.target.closest('button');if(b){st.col=b.dataset.v;all()}};
+$('famv').onclick=ev=>{const b=ev.target.closest('button');if(b){st.fam=b.dataset.v;all()}};
+$('strip').onclick=ev=>{const b=ev.target.closest('button');if(b){Object.assign(st,JSON.parse(b.dataset.j));st.build=100;all()}};
+$('cin').oninput=ev=>{st.c=+ev.target.value;$('cv').textContent=st.c.toFixed(2);drawMain();drawPiece();drawStrip();try{localStorage.setItem('cs3',JSON.stringify(st))}catch(e){}};
+$('build').oninput=ev=>{st.build=+ev.target.value;drawMain()};
+$('tips').onchange=ev=>{st.tips=ev.target.checked;drawMain()};
+$('reset').onclick=()=>{Object.assign(st,DEF[st.type],{col:'paper',build:100,tips:false});all()};
+const svg=$('svg'),tip=$('tip');
+svg.addEventListener('pointermove',ev=>{
+  const t=ev.target.closest('path[data-i]'),hl=$('hl');
+  if(!t){tip.style.opacity=0;if(hl)hl.setAttribute('d','');return}
+  const q=cur.pieces[+t.dataset.i];hl.setAttribute('d',t.getAttribute('d'));
+  if(st.type==='3ds'||st.type==='3dss'){tip.textContent=`#${+t.dataset.i+1} · `+(q.kind==='ins'?`stretch slice (${q.ins==='fat'?'ordinary':'mirrored'}), layer ${q.m}`:`slice ${q.t+1} of ${st.j} of ${q.kind==='fat'?'an ordinary':'a mirrored'} crescent`+(q.m?`, layer ${q.m}`:', starting spiral'));
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='2h'){tip.textContent=`#${+t.dataset.i+1} · `+(q.mir?'mirror-image half':'half')+' of '+(q.role==='o'?`strip slice ${q.t+1}`:`slice ${q.t+1} of a pinwheel crescent`)+` · direction ${q.d}/${cur.N}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='2dt'){tip.textContent=`#${+t.dataset.i+1} · trimmed double crescent `+(q.role==='z'?'on the zigzag':'')+` · direction ${q.d}/${cur.N}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='2dm'){tip.textContent=`#${+t.dataset.i+1} · piece turned by ${q.d}/${cur.N} of a full turn`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='2d'){tip.textContent=`#${+t.dataset.i+1} · double crescent starting at direction ${q.d}/${cur.N}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='2s'){tip.textContent=`#${+t.dataset.i+1} · `+(q.role==='o'?`strip slice ${q.t+1}`:`slice ${q.t+1} of a pinwheel crescent`)+` · direction ${q.d}/${cur.N}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='2'){tip.textContent=`#${+t.dataset.i+1} · `+(q.role==='o'?`strip copy ${q.t+1}`:'crescent of the pinwheel')+` · direction ${q.d}/${cur.N}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='1o'){tip.textContent=`#${+t.dataset.i+1} · sector ${q.d+1} · `+(q.role==='v'?'pointing back toward the centre':'pointing out from the centre')+` · layer ${q.m+1}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='1e'){tip.textContent=`#${+t.dataset.i+1} · `+(q.role==='e'?'added by the stretch':'piece of the regular polygon');
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='4'){tip.textContent=`#${+t.dataset.i+1} · `+(q.mir?'mirrored':'ordinary')+' piece · '+(q.role==='e'?'added by the stretch, ':'')+(q.m?`layer ${q.m+1}`:'centre spiral')+` · direction ${q.d}/${cur.N}`;
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  if(st.type==='3t'){tip.textContent=`#${+t.dataset.i+1} · `+(q.role==='c'?'triple in the centre spiral':'triple fanned around a corner of the spiral');
+    const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1;return}
+  const role={c:'starting shape',k:'corner of layer '+q.m,x:'sharp corner of layer '+q.m,e:'edge of layer '+q.m}[q.role];
+  tip.textContent=`#${+t.dataset.i+1}`+(q.half?` · ${q.half==='a'?'half':'mirrored half'} of piece ${Math.floor(+t.dataset.i/2)+1}`:'')+` · tip (${q.T[0].toFixed(2)}, ${q.T[1].toFixed(2)}) · direction ${q.d}/${cur.N} · ${role}`;
+  const fr=$('fig').getBoundingClientRect();let x=ev.clientX-fr.left+14,y=ev.clientY-fr.top+14;
+  if(x+tip.offsetWidth>fr.width)x=Math.max(4,ev.clientX-fr.left-tip.offsetWidth-10);
+  tip.style.left=x+'px';tip.style.top=y+'px';tip.style.opacity=1});
+svg.addEventListener('pointerleave',()=>{tip.style.opacity=0;const hl=$('hl');if(hl)hl.setAttribute('d','')});
+const ro=new ResizeObserver(()=>drawMain());ro.observe($('fig'));
+all();
+}
+
+</script>
+</body>
+</html>
