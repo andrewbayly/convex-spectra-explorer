@@ -5,6 +5,8 @@ by Yoshiaki Araki and Teruhisa Sugimoto (April 2021, Japan Tessellation Design A
 [one-pager](https://www.t3puzzle.com/convexspectraset.html)), which answers Erich Friedman's
 [Convex Spectra](https://erich-friedman.github.io/mathmagic/0499.html) problem.
 
+**Open the explorer: https://andrewbayly.github.io/convex-spectra-explorer/**
+
 The convex spectrum of a shape is the set of numbers *n* such that *n* congruent copies of it
 can form a convex shape. For each Type on the sheet, pick the piece with **k** (and **j** where
 it applies), then grow (**r**) and stretch (**s** / **N**) the arrangement; the page draws the
@@ -27,3 +29,7 @@ page's notes.
 ## Running it
 
 It is a single self-contained file: open `index.html` in a browser. No build step.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
